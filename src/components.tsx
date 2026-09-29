@@ -50,9 +50,6 @@ export function AppHeader({
             style={styles.brandLogo}
           />
         )}
-        <Text style={styles.account} numberOfLines={1}>
-          {bootstrap.activeAccount.name}
-        </Text>
       </View>
       <View style={styles.headerActions}>
         <Pressable accessibilityLabel="Search" style={styles.iconButton}>
@@ -159,14 +156,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingBottom: spacing.md,
+    minHeight: 68,
+    paddingBottom: 12,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingTop: 12,
   },
-  brandBlock: { flex: 1, minWidth: 0 },
-  brandLogo: { height: 32, width: 156 },
+  brandBlock: { alignItems: 'flex-start', flex: 1, justifyContent: 'center', minWidth: 0 },
+  brandLogo: { height: 42, width: 96 },
   brandFallback: { color: colors.text, fontSize: 17, fontWeight: '800', letterSpacing: 0 },
-  account: { color: colors.muted, fontSize: 12, marginTop: 3 },
   headerActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   iconButton: {
     alignItems: 'center',
