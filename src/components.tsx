@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   CalendarDays,
   ChevronRight,
@@ -14,6 +15,9 @@ import {
 
 import type { MobileBootstrap, TabKey } from './contracts/bootstrap';
 import { colors, spacing } from './theme';
+
+const BLACK_LABEL_LOGO_URL =
+  'https://xopcttkrmjvwdddawdaa.supabase.co/storage/v1/object/public/Logos/blacklabellogoog.png';
 
 const tabIcons: Record<TabKey, ComponentType<LucideProps>> = {
   home: House,
@@ -30,10 +34,22 @@ export function AppHeader({
   bootstrap: MobileBootstrap;
   onSwitchPersona: () => void;
 }) {
+  const [logoFailed, setLogoFailed] = useState(false);
+
   return (
     <View style={styles.header}>
       <View style={styles.brandBlock}>
-        <Text style={styles.brand}>BLACK LABEL</Text>
+        {logoFailed ? (
+          <Text style={styles.brandFallback}>BLACK LABEL</Text>
+        ) : (
+          <Image
+            accessibilityLabel="Black Label Branding"
+            onError={() => setLogoFailed(true)}
+            resizeMode="contain"
+            source={{ uri: BLACK_LABEL_LOGO_URL }}
+            style={styles.brandLogo}
+          />
+        )}
         <Text style={styles.account} numberOfLines={1}>
           {bootstrap.activeAccount.name}
         </Text>
@@ -148,7 +164,8 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   brandBlock: { flex: 1, minWidth: 0 },
-  brand: { color: colors.text, fontSize: 17, fontWeight: '800', letterSpacing: 0 },
+  brandLogo: { height: 32, width: 156 },
+  brandFallback: { color: colors.text, fontSize: 17, fontWeight: '800', letterSpacing: 0 },
   account: { color: colors.muted, fontSize: 12, marginTop: 3 },
   headerActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   iconButton: {
