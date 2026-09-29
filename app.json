@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Black Label",
+    "slug": "black-label-connect",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "blacklabel",
+    "primaryColor": "#090A0C",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.blacklabelbranding.connect",
+      "buildNumber": "1"
+    },
+    "android": {
+      "package": "com.blacklabelbranding.connect",
+      "versionCode": 1,
+      "permissions": [],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
