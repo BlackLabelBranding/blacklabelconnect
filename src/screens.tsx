@@ -1,8 +1,10 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Bell, BriefcaseBusiness, Clock3, MapPin, ShieldCheck } from 'lucide-react-native';
 
+import { CalendarExperience } from './CalendarExperience';
 import { ListRow, SectionHeader } from './components';
 import type { MobileBootstrap } from './contracts/bootstrap';
+import { TalentWorkScreen } from './TalentWorkScreen';
 import { colors, spacing } from './theme';
 
 const Screen = ({ children }: { children: React.ReactNode }) => (
@@ -67,38 +69,11 @@ export function InboxScreen() {
 }
 
 export function CalendarScreen() {
-  return (
-    <Screen>
-      <Text style={styles.pageTitle}>Calendar</Text>
-      <Text style={styles.pageSubtitle}>Monday, September 28</Text>
-      <View style={styles.dateRail}>
-        {['M 28', 'T 29', 'W 30', 'T 01', 'F 02'].map((day, index) => (
-          <View key={day} style={[styles.date, index === 0 && styles.dateActive]}>
-            <Text style={[styles.dateText, index === 0 && styles.dateTextActive]}>{day}</Text>
-          </View>
-        ))}
-      </View>
-      <SectionHeader title="Schedule" />
-      <ListRow eyebrow="9:30 AM" title="Team operations call" detail="45 minutes · Google Meet" tone="green" onPress={() => undefined} />
-      <ListRow eyebrow="2:00 PM" title="Oak & Main walkthrough" detail="Venue operations · 1420 Market Street" onPress={() => undefined} />
-      <ListRow eyebrow="4:30 PM" title="Campaign review" detail="Promo Proof · BL-284" onPress={() => undefined} />
-    </Screen>
-  );
+  return <CalendarExperience />;
 }
 
 export function WorkScreen({ bootstrap }: { bootstrap: MobileBootstrap }) {
-  const contractor = bootstrap.activePersona === 'contractor';
-  return (
-    <Screen>
-      <Text style={styles.pageTitle}>Work</Text>
-      <Text style={styles.pageSubtitle}>{contractor ? 'Offers, confirmed work, and deliverables.' : 'Assignments and operational tasks.'}</Text>
-      <SectionHeader title={contractor ? 'Needs response' : 'In progress'} />
-      <ListRow eyebrow={contractor ? 'Offer' : 'Priority'} title={contractor ? 'Oak & Main ambassador shift' : 'Friday event staffing'} detail={contractor ? 'Friday · 6:00–10:00 PM · $180' : '2 of 4 roles confirmed'} meta={contractor ? 'New' : '50%'} tone="amber" onPress={() => undefined} />
-      <SectionHeader title={contractor ? 'Confirmed' : 'My tasks'} />
-      <ListRow title="Launch photo capture" detail="Thursday · Black Label Entertainment" meta="Oct 1" tone="green" onPress={() => undefined} />
-      <ListRow title={contractor ? 'Upload completion proof' : 'Review venue floor plan'} detail={contractor ? '3 photos required after the shift' : 'Oak & Main event operations'} meta={contractor ? 'Required' : 'Tomorrow'} onPress={() => undefined} />
-    </Screen>
-  );
+  return <TalentWorkScreen bootstrap={bootstrap} />;
 }
 
 export function MoreScreen({ bootstrap }: { bootstrap: MobileBootstrap }) {
