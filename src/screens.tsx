@@ -15,11 +15,12 @@ const Screen = ({ children }: { children: React.ReactNode }) => (
 
 export function HomeScreen({ bootstrap }: { bootstrap: MobileBootstrap }) {
   const contractor = bootstrap.activePersona === 'contractor';
+  const firstName = bootstrap.user.displayName.split(/\s+/)[0] || 'there';
   return (
     <Screen>
       <View style={styles.greeting}>
         <Text style={styles.kicker}>{contractor ? 'CONTRACTOR VIEW' : 'MONDAY · SEPTEMBER 28'}</Text>
-        <Text style={styles.title}>Good evening, Lance.</Text>
+        <Text style={styles.title}>Good evening, {firstName}.</Text>
         <Text style={styles.subtitle}>{contractor ? 'One assignment needs your response.' : 'Here is what needs attention next.'}</Text>
       </View>
 
@@ -76,7 +77,13 @@ export function WorkScreen({ bootstrap }: { bootstrap: MobileBootstrap }) {
   return <TalentWorkScreen bootstrap={bootstrap} />;
 }
 
-export function MoreScreen({ bootstrap }: { bootstrap: MobileBootstrap }) {
+export function MoreScreen({
+  bootstrap,
+  onSignOut,
+}: {
+  bootstrap: MobileBootstrap;
+  onSignOut: () => void;
+}) {
   return (
     <Screen>
       <View style={styles.profile}>
@@ -96,6 +103,8 @@ export function MoreScreen({ bootstrap }: { bootstrap: MobileBootstrap }) {
       <View style={styles.accessLine}><BriefcaseBusiness color={colors.muted} size={20} /><Text style={styles.accessText}>1 active workspace</Text></View>
       <View style={styles.accessLine}><Clock3 color={colors.muted} size={20} /><Text style={styles.accessText}>Bootstrap contract version 1</Text></View>
       <View style={styles.accessLine}><MapPin color={colors.muted} size={20} /><Text style={styles.accessText}>Central time</Text></View>
+      <SectionHeader title="Session" />
+      <ListRow title="Sign out" detail={bootstrap.user.displayName} onPress={onSignOut} />
     </Screen>
   );
 }

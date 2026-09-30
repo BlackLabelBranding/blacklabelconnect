@@ -29,10 +29,10 @@ const tabIcons: Record<TabKey, ComponentType<LucideProps>> = {
 
 export function AppHeader({
   bootstrap,
-  onSwitchPersona,
+  onOpenAccount,
 }: {
   bootstrap: MobileBootstrap;
-  onSwitchPersona: () => void;
+  onOpenAccount: () => void;
 }) {
   const [logoFailed, setLogoFailed] = useState(false);
 
@@ -56,8 +56,8 @@ export function AppHeader({
           <Search color={colors.text} size={19} strokeWidth={1.8} />
         </Pressable>
         <Pressable
-          accessibilityLabel="Switch preview persona"
-          onPress={onSwitchPersona}
+          accessibilityLabel="Open account"
+          onPress={onOpenAccount}
           style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
         >
           <Text style={styles.avatarText}>{bootstrap.user.initials}</Text>
