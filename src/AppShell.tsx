@@ -1,25 +1,27 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { AppHeader, TabBar } from './components';
-import type { Persona, TabKey } from './contracts/bootstrap';
-import { bootstrapFixtures } from './fixtures/bootstrap';
+import type { MobileBootstrap, TabKey } from './contracts/bootstrap';
 import { getEnabledTabs } from './navigation';
 import { CalendarScreen, HomeScreen, InboxScreen, MoreScreen, WorkScreen } from './screens';
 import { colors } from './theme';
 
-export function AppShell() {
-  const [persona, setPersona] = useState<Persona>('employee');
+export function AppShell({
+  bootstrap,
+  onSignOut,
+}: {
+  bootstrap: MobileBootstrap;
+  onSignOut: () => void;
+}) {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const { width } = useWindowDimensions();
-  const bootstrap = bootstrapFixtures[persona];
   const tabs = useMemo(() => getEnabledTabs(bootstrap), [bootstrap]);
   const constrained = width > 720;
 
-  const switchPersona = () => {
-    setPersona((current) => (current === 'employee' ? 'contractor' : 'employee'));
-    setActiveTab('home');
-  };
+  useEffect(() => {
+    if (!tabs.includes(activeTab)) setActiveTab(tabs[0] ?? 'home');
+  }, [activeTab, tabs]);
 
   if (tabs.length === 0) {
     return (
@@ -33,13 +35,13 @@ export function AppShell() {
   return (
     <SafeAreaView style={styles.canvas}>
       <View style={[styles.app, constrained && styles.appConstrained]}>
-        <AppHeader bootstrap={bootstrap} onSwitchPersona={switchPersona} />
+        <AppHeader bootstrap={bootstrap} onOpenAccount={() => setActiveTab('more')} />
         <View style={styles.content}>
           {activeTab === 'home' ? <HomeScreen bootstrap={bootstrap} /> : null}
           {activeTab === 'inbox' ? <InboxScreen /> : null}
           {activeTab === 'calendar' ? <CalendarScreen /> : null}
           {activeTab === 'work' ? <WorkScreen bootstrap={bootstrap} /> : null}
-          {activeTab === 'more' ? <MoreScreen bootstrap={bootstrap} /> : null}
+          {activeTab === 'more' ? <MoreScreen bootstrap={bootstrap} onSignOut={onSignOut} /> : null}
         </View>
         <TabBar
           activeTab={activeTab}
