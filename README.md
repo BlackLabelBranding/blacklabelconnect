@@ -14,7 +14,9 @@ npm run web
 
 Use `npm run ios` or `npm run android` when the matching simulator is available.
 
-Set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local`. The publishable key is intended for client use; never place a service-role key in the mobile app.
+Set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local`. Connect intentionally accepts only the shared BLB Dashboard Supabase Auth project so Hub, My Black Label, and Connect resolve the same Auth user ID. The publishable key is intended for client use; never place a service-role key in the mobile app.
+
+My Black Label remains the canonical account activation, invitation, and password-recovery experience. Connect is a first-party client of that same identity tenant and keeps its device session in isolated native storage; it does not copy passwords, share browser storage, or create a second identity.
 
 ## Current slice
 
