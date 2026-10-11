@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { AppShell } from './AppShell';
+import { BLACK_LABEL_ACCOUNT_PORTAL_URL } from './auth/config';
 import type { MobileBootstrap } from './contracts/bootstrap';
 import { supabase, supabaseConfigError } from './lib/supabase';
 import { fetchMobileBootstrap } from './services/mobileBootstrap';
@@ -47,12 +48,18 @@ export function BootstrapGate() {
     }
 
     let active = true;
-    void supabase.auth.getSession().then(({ data, error }) => {
+    void supabase.auth.getSession().then(async ({ data, error }) => {
       if (!active) return;
       if (error) {
         setState({ status: 'signed-out', error: error.message });
       } else if (data.session) {
-        void loadBootstrap();
+        const userResult = await supabase.auth.getUser();
+        if (!active) return;
+        if (userResult.error || !userResult.data.user) {
+          setState({ status: 'signed-out', error: 'Your Black Label session has expired. Sign in again.' });
+        } else {
+          void loadBootstrap();
+        }
       } else {
         setState({ status: 'signed-out' });
       }
@@ -129,18 +136,35 @@ export function BootstrapGate() {
 function SignInScreen({ initialError }: { initialError?: string }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [recovering, setRecovering] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(initialError);
+  const [notice, setNotice] = useState<string>();
 
-  const signIn = async () => {
+  const submit = async () => {
     if (!supabase || busy) return;
     setBusy(true);
     setError(undefined);
-    const result = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-    if (result.error) setError(result.error.message);
+    setNotice(undefined);
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (recovering) {
+      const result = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: BLACK_LABEL_ACCOUNT_PORTAL_URL,
+      });
+      if (result.error) {
+        setError(result.error.message);
+      } else {
+        setNotice('If that email has a Black Label login, a password reset link has been sent.');
+      }
+    } else {
+      const result = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+      if (result.error) setError(result.error.message);
+    }
+
     setBusy(false);
   };
 
@@ -152,8 +176,12 @@ function SignInScreen({ initialError }: { initialError?: string }) {
       >
         <View style={styles.signIn}>
           <Text style={styles.brand}>BLACK LABEL</Text>
-          <Text style={styles.title}>Sign in</Text>
-          <Text style={styles.detail}>Use your Black Label Hub credentials.</Text>
+          <Text style={styles.title}>{recovering ? 'Reset your password' : 'Sign in'}</Text>
+          <Text style={styles.detail}>
+            {recovering
+              ? 'We will send you to My Black Label to securely choose a new password.'
+              : 'Use the same Black Label login you use for Hub and My Black Label.'}
+          </Text>
           <TextInput
             autoCapitalize="none"
             autoComplete="email"
@@ -164,28 +192,50 @@ function SignInScreen({ initialError }: { initialError?: string }) {
             style={styles.input}
             value={email}
           />
-          <TextInput
-            autoCapitalize="none"
-            autoComplete="current-password"
-            onChangeText={setPassword}
-            onSubmitEditing={() => void signIn()}
-            placeholder="Password"
-            placeholderTextColor={colors.muted}
-            secureTextEntry
-            style={styles.input}
-            value={password}
-          />
+          {!recovering ? (
+            <TextInput
+              autoCapitalize="none"
+              autoComplete="current-password"
+              onChangeText={setPassword}
+              onSubmitEditing={() => void submit()}
+              placeholder="Password"
+              placeholderTextColor={colors.muted}
+              secureTextEntry
+              style={styles.input}
+              value={password}
+            />
+          ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
+          {notice ? <Text style={styles.notice}>{notice}</Text> : null}
           <Pressable
-            disabled={busy || !email.trim() || !password}
-            onPress={() => void signIn()}
+            disabled={busy || !email.trim() || (!recovering && !password)}
+            onPress={() => void submit()}
             style={({ pressed }) => [
               styles.primaryButton,
-              (busy || !email.trim() || !password) && styles.buttonDisabled,
+              (busy || !email.trim() || (!recovering && !password)) && styles.buttonDisabled,
               pressed && styles.buttonPressed,
             ]}
           >
-            {busy ? <ActivityIndicator color={colors.canvas} /> : <Text style={styles.primaryButtonText}>Sign in</Text>}
+            {busy ? (
+              <ActivityIndicator color={colors.canvas} />
+            ) : (
+              <Text style={styles.primaryButtonText}>
+                {recovering ? 'Send reset link' : 'Sign in'}
+              </Text>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setRecovering((current) => !current);
+              setError(undefined);
+              setNotice(undefined);
+              setPassword('');
+            }}
+            style={styles.secondaryButton}
+          >
+            <Text style={styles.secondaryButtonText}>
+              {recovering ? 'Back to sign in' : 'Forgot password?'}
+            </Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -246,6 +296,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   error: { color: '#F08B82', fontSize: 13, lineHeight: 18, marginBottom: spacing.sm },
+  notice: { color: colors.green, fontSize: 13, lineHeight: 18, marginBottom: spacing.sm },
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.amber,
