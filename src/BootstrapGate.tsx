@@ -156,6 +156,11 @@ function SignInScreen({ initialError }: { initialError?: string }) {
   const openPasswordRecovery = async () => {
     setError(undefined);
     try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.location.assign(BLACK_LABEL_ACCOUNT_PORTAL_URL);
+        return;
+      }
+
       await Linking.openURL(BLACK_LABEL_ACCOUNT_PORTAL_URL);
     } catch {
       setError('Unable to open My Black Label. Visit myblacklabel.app to reset your password.');
