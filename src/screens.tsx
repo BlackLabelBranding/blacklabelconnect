@@ -2,6 +2,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Bell, BriefcaseBusiness, Clock3, MapPin, ShieldCheck } from 'lucide-react-native';
 
 import { CalendarExperience } from './CalendarExperience';
+import { InboxExperience } from './InboxExperience';
 import { ListRow, SectionHeader } from './components';
 import type { MobileBootstrap } from './contracts/bootstrap';
 import { TalentWorkScreen } from './TalentWorkScreen';
@@ -54,19 +55,7 @@ export function HomeScreen({ bootstrap }: { bootstrap: MobileBootstrap }) {
 }
 
 export function InboxScreen() {
-  return (
-    <Screen>
-      <Text style={styles.pageTitle}>Inbox</Text>
-      <Text style={styles.pageSubtitle}>Messages across your authorized workspaces.</Text>
-      <SectionHeader title="Unread" action="Mark all read" />
-      <ListRow eyebrow="Operations" title="Maya Rodriguez" detail="The Friday load-in moved to 3:30. Can you confirm?" meta="8m" tone="amber" onPress={() => undefined} />
-      <ListRow eyebrow="Oak & Main" title="James Chen" detail="The updated floor plan is attached." meta="31m" tone="amber" onPress={() => undefined} />
-      <ListRow title="Production team" detail="Lance: Final photo selections are ready." meta="1h" onPress={() => undefined} />
-      <SectionHeader title="Earlier" />
-      <ListRow title="Black Label Talent" detail="Availability request for October 3." meta="Fri" onPress={() => undefined} />
-      <ListRow title="Promo Proof" detail="Campaign BL-284 was approved." meta="Thu" tone="green" onPress={() => undefined} />
-    </Screen>
-  );
+  return <InboxExperience />;
 }
 
 export function CalendarScreen() {
