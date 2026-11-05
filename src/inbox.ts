@@ -61,8 +61,9 @@ function adaptConversation(value: unknown): EmployeeInboxConversation {
     !isNullableString(value.subject) ||
     !isNullableString(value.status) ||
     !(value.last_message_at === null || isIsoDate(value.last_message_at)) ||
+    typeof value.unread_count !== 'number' ||
     !Number.isInteger(value.unread_count) ||
-    (value.unread_count as number) < 0
+    value.unread_count < 0
   ) {
     throw new Error('The employee inbox response contains a malformed conversation.');
   }
@@ -74,7 +75,7 @@ function adaptConversation(value: unknown): EmployeeInboxConversation {
     subject: value.subject,
     status: value.status,
     lastMessageAt: value.last_message_at,
-    unreadCount: value.unread_count as number,
+    unreadCount: value.unread_count,
     latestMessage: adaptMessage(value.latest_message),
   };
 }
