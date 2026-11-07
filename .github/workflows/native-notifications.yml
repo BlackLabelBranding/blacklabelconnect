@@ -1,0 +1,31 @@
+name: Native notification preflight
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'app.json'
+      - 'eas.json'
+      - 'src/EmployeeNotificationOptIn.tsx'
+      - '.github/workflows/native-notifications.yml'
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Check Expo SDK dependency compatibility
+        run: npx expo install --check
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Validate native Expo configuration
+        run: npx expo config --type public --json > /tmp/connect-expo-config.json
+      - name: Verify notification plugin and platform identifiers
+        run: |
+          node -e "const a=require('./app.json').expo; if(!a.plugins?.includes('expo-notifications')||!a.ios?.bundleIdentifier||!a.android?.package)process.exit(1)"
