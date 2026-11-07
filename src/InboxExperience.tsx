@@ -55,6 +55,7 @@ function ConversationRow({
         <MessageSquare color={colors.amber} size={19} strokeWidth={1.8} />
       </View>
       <View style={styles.rowBody}>
+        <Text style={styles.channelEyebrow}>EXTERNAL SMS HISTORY</Text>
         <View style={styles.rowTitleLine}>
           <Text numberOfLines={1} style={styles.rowTitle}>{titleForConversation(conversation)}</Text>
           <Text style={styles.rowTime}>{formatInboxTimestamp(timestamp)}</Text>
@@ -154,7 +155,7 @@ function ThreadExperience({
         </Pressable>
         <View style={styles.threadHeaderCopy}>
           <Text numberOfLines={1} style={styles.threadTitle}>{conversation.clientName}</Text>
-          <Text style={styles.threadStatus}>{conversation.status}</Text>
+          <Text style={styles.threadStatus}>EXTERNAL SMS HISTORY · {conversation.status}</Text>
         </View>
         <Pressable
           accessibilityLabel="Refresh conversation"
@@ -217,7 +218,7 @@ function ThreadExperience({
           <Send color={colors.muted} size={19} />
         </Pressable>
       </View>
-      <Text style={styles.composerNotice}>Replies are not enabled yet. Drafts are not sent or saved.</Text>
+      <Text style={styles.composerNotice}>External SMS history · Sending is disabled. Drafts are not sent or saved.</Text>
     </View>
   );
 }
@@ -337,7 +338,7 @@ export function InboxExperience() {
         ) : inbox?.conversations.length ? (
           <View style={styles.list}>
             <View style={styles.listHeader}>
-              <Text style={styles.listTitle}>Recent conversations</Text>
+              <Text style={styles.listTitle}>External SMS conversations</Text>
               <Text style={styles.listCount}>{inbox.conversations.length}</Text>
             </View>
             {inbox.conversations.map((conversation) => (
@@ -376,6 +377,7 @@ const styles = StyleSheet.create({
   rowTitleLine: { alignItems: 'baseline', flexDirection: 'row', gap: spacing.sm },
   rowTitle: { color: colors.text, flex: 1, fontSize: 15, fontWeight: '800' },
   rowTime: { color: colors.muted, fontSize: 11 },
+  channelEyebrow: { color: colors.amber, fontSize: 9, fontWeight: '800', marginBottom: 3 },
   rowPreview: { color: colors.muted, fontSize: 13, lineHeight: 18, marginTop: 5 },
   rowEnd: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginLeft: spacing.sm },
   unreadBadge: { alignItems: 'center', backgroundColor: colors.amber, borderRadius: 9, justifyContent: 'center', minHeight: 18, minWidth: 18, paddingHorizontal: 5 },
