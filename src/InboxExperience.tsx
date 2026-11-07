@@ -31,6 +31,7 @@ import { fetchEmployeeInbox, fetchEmployeeInboxThread } from './services/employe
 import { colors, spacing } from './theme';
 import { BroadcastExperience } from './BroadcastExperience';
 import { AnnouncementExperience } from './AnnouncementExperience';
+import { ManagerBroadcastExperience } from './ManagerBroadcastExperience';
 
 function ConversationRow({
   conversation,
@@ -217,6 +218,7 @@ export function InboxExperience() {
   const [selected, setSelected] = useState<EmployeeInboxConversation | null>(null);
   const [showBroadcasts, setShowBroadcasts] = useState(false);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
+  const [showManagerApprovals, setShowManagerApprovals] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -243,6 +245,7 @@ export function InboxExperience() {
     return () => clearInterval(interval);
   }, [load]);
 
+  if (showManagerApprovals) return <ManagerBroadcastExperience onBack={() => setShowManagerApprovals(false)} />;
   if (showAnnouncements) return <AnnouncementExperience onBack={() => setShowAnnouncements(false)} />;
   if (showBroadcasts) return <BroadcastExperience onBack={() => setShowBroadcasts(false)} />;
 
@@ -267,6 +270,11 @@ export function InboxExperience() {
             {refreshing ? <ActivityIndicator color={colors.text} /> : <RefreshCw color={colors.text} size={20} />}
           </Pressable>
         </View>
+
+        <Pressable accessibilityLabel="Open manager broadcast approvals" onPress={() => setShowManagerApprovals(true)} style={styles.broadcastEntry}>
+          <Text style={styles.broadcastEntryTitle}>Manager approvals</Text>
+          <Text style={styles.broadcastEntrySubtitle}>Review and publish employee announcements ›</Text>
+        </Pressable>
 
         <Pressable accessibilityLabel="Open employee announcements" onPress={() => setShowAnnouncements(true)} style={styles.broadcastEntry}>
           <Text style={styles.broadcastEntryTitle}>Employee announcements</Text>
