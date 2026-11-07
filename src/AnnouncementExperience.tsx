@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from './lib/supabase';
 import { colors, spacing } from './theme';
+import { EmployeeNotificationOptIn } from './EmployeeNotificationOptIn';
 
 type Announcement = { id: string; broadcastId: string; title: string; body: string; createdAt: string; readAt: string | null };
 export function AnnouncementExperience({ onBack }: { onBack: () => void }) {
@@ -20,6 +21,7 @@ export function AnnouncementExperience({ onBack }: { onBack: () => void }) {
   <Pressable accessibilityRole="button" accessibilityLabel="Back to inbox" onPress={onBack}><Text style={styles.back}>‹ Back to Inbox</Text></Pressable>
   <Text style={styles.kicker}>BLACK LABEL COMMUNICATIONS</Text><Text style={styles.heading}>Employee announcements</Text>
   <Text style={styles.description}>Company announcements are available here even when push notifications are turned off.</Text>
+  <EmployeeNotificationOptIn/>
   <Pressable accessibilityRole="button" accessibilityLabel="Refresh announcements" onPress={()=>void refresh()}><Text style={styles.back}>Refresh announcements</Text></Pressable>
   {loading ? <ActivityIndicator color={colors.amber}/> : error ? <Text style={styles.error}>{error}</Text> : items.length === 0 ? <Text style={styles.description}>No announcements yet.</Text> : items.map(item=><View key={item.id} style={styles.card}>
    <Text style={styles.title}>{item.title}</Text><Text style={styles.description}>{item.body}</Text>
