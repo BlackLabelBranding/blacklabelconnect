@@ -251,6 +251,7 @@ export function InboxExperience() {
   const [inbox, setInbox] = useState<EmployeeInbox | null>(null);
   const [selected, setSelected] = useState<EmployeeInboxConversation | null>(null);
   const [showBroadcasts, setShowBroadcasts] = useState(false);
+  const [showTools, setShowTools] = useState(false);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [showManagerApprovals, setShowManagerApprovals] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -305,6 +306,10 @@ export function InboxExperience() {
           </Pressable>
         </View>
 
+        <Pressable accessibilityLabel="Toggle messaging tools" onPress={() => setShowTools((value) => !value)} style={styles.toolsToggle}>
+          <Text style={styles.toolsToggleText}>Announcements and manager tools {showTools ? "−" : "+"}</Text>
+        </Pressable>
+        {showTools ? <>
         <Pressable accessibilityLabel="Open manager broadcast approvals" onPress={() => setShowManagerApprovals(true)} style={styles.broadcastEntry}>
           <Text style={styles.broadcastEntryTitle}>Manager approvals</Text>
           <Text style={styles.broadcastEntrySubtitle}>Review and publish employee announcements ›</Text>
@@ -320,6 +325,7 @@ export function InboxExperience() {
           <Text style={styles.broadcastEntrySubtitle}>Create announcements and manage campaign drafts ›</Text>
         </Pressable>
 
+        </> : null}
         {loading ? (
           <StatePanel busy title="Loading your inbox" detail="Pulling your authorized conversations." />
         ) : error ? (
@@ -351,8 +357,10 @@ export function InboxExperience() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { paddingBottom: spacing.xl, paddingHorizontal: spacing.md },
+  container: { flex: 1, minWidth: 0, width: '100%', overflow: 'hidden' },
+  content: { paddingBottom: spacing.xl, paddingHorizontal: spacing.md, width: '100%' },
+  toolsToggle: { padding: spacing.md, marginBottom: spacing.sm },
+  toolsToggleText: { color: colors.soft, fontSize: 12, fontWeight: '700' },
   pageHead: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingBottom: spacing.lg, paddingTop: spacing.lg },
   pageCopy: { flex: 1, minWidth: 0 },
   kicker: { color: colors.amber, fontSize: 10, fontWeight: '800' },
@@ -386,12 +394,12 @@ const styles = StyleSheet.create({
   threadHeaderCopy: { flex: 1, minWidth: 0, paddingHorizontal: spacing.xs },
   threadTitle: { color: colors.text, fontSize: 16, fontWeight: '800', textAlign: 'center' },
   threadStatus: { color: colors.muted, fontSize: 10, marginTop: 3, textAlign: 'center', textTransform: 'uppercase' },
-  threadContent: { gap: spacing.md, padding: spacing.md, paddingBottom: spacing.xl },
-  messageWrap: { alignSelf: 'flex-start', maxWidth: '84%' },
+  threadContent: { gap: spacing.md, padding: spacing.md, paddingBottom: spacing.xl, width: '100%' },
+  messageWrap: { alignSelf: 'flex-start', maxWidth: '84%', minWidth: 0, flexShrink: 1 },
   messageWrapOutbound: { alignSelf: 'flex-end' },
   messageSender: { color: colors.muted, fontSize: 10, fontWeight: '700', marginBottom: 5, marginLeft: 4 },
   messageSenderOutbound: { marginLeft: 0, marginRight: 4, textAlign: 'right' },
-  messageBubble: { borderRadius: 8, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  messageBubble: { borderRadius: 14, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, maxWidth: '100%', minWidth: 0 },
   messageInbound: { backgroundColor: colors.surfaceRaised, borderColor: colors.line, borderWidth: 1 },
   messageOutbound: { backgroundColor: colors.amberSoft, borderColor: colors.amber, borderWidth: 1 },
   messageBody: { color: colors.text, fontSize: 14, lineHeight: 20 },
