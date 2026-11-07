@@ -8,6 +8,7 @@ export function EmployeeNotificationOptIn() {
  const [enabled,setEnabled]=useState(false);
  const seen=useRef<Set<string> | null>(null);
  const poll=useCallback(async()=>{
+  if (!supabase) return;
   const {data,error}=await supabase.rpc('connect_my_broadcast_announcements');
   if(error||!Array.isArray(data))return;
   const current=data as Announcement[];
@@ -19,13 +20,15 @@ export function EmployeeNotificationOptIn() {
   }
  },[]);
  useEffect(()=>{
-  if(!enabled||permission!=='granted')return;
+  if(!enabled||permission!=='granted'||!supabase)return;
   void poll();
+  const onVisibility=()=>{if(document.visibilityState==='visible')void poll();};
+  document.addEventListener('visibilitychange',onVisibility);
   const timer=setInterval(()=>{void poll();},30000);
-  return ()=>clearInterval(timer);
+  return ()=>{clearInterval(timer);document.removeEventListener('visibilitychange',onVisibility);};
  },[enabled,permission,poll]);
  const activate=async()=>{
-  if(typeof Notification==='undefined')return;
+  if(typeof Notification==='undefined'||!supabase)return;
   const next=await Notification.requestPermission();
   setPermission(next);
   if(next==='granted'){seen.current=null;setEnabled(true);}
