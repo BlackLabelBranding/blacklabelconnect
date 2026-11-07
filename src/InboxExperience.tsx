@@ -34,6 +34,7 @@ import { colors, spacing } from './theme';
 import { BroadcastExperience } from './BroadcastExperience';
 import { AnnouncementExperience } from './AnnouncementExperience';
 import { ManagerBroadcastExperience } from './ManagerBroadcastExperience';
+import { TeamChatExperience } from './TeamChatExperience';
 
 function ConversationRow({
   conversation,
@@ -252,6 +253,7 @@ export function InboxExperience() {
   const [inbox, setInbox] = useState<EmployeeInbox | null>(null);
   const [selected, setSelected] = useState<EmployeeInboxConversation | null>(null);
   const [showBroadcasts, setShowBroadcasts] = useState(false);
+  const [showTeamChat, setShowTeamChat] = useState(false);
   const [showTools, setShowTools] = useState(false);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [showManagerApprovals, setShowManagerApprovals] = useState(false);
@@ -281,6 +283,7 @@ export function InboxExperience() {
     return () => clearInterval(interval);
   }, [load]);
 
+  if (showTeamChat) return <TeamChatExperience onBack={() => setShowTeamChat(false)} />;
   if (showManagerApprovals) return <ManagerBroadcastExperience onBack={() => setShowManagerApprovals(false)} />;
   if (showAnnouncements) return <AnnouncementExperience onBack={() => setShowAnnouncements(false)} />;
   if (showBroadcasts) return <BroadcastExperience onBack={() => setShowBroadcasts(false)} />;
@@ -307,6 +310,10 @@ export function InboxExperience() {
           </Pressable>
         </View>
 
+        <Pressable accessibilityLabel="Open internal team messages" onPress={() => setShowTeamChat(true)} style={styles.broadcastEntry}>
+          <Text style={styles.broadcastEntryTitle}>Team messages</Text>
+          <Text style={styles.broadcastEntrySubtitle}>Internal employee chat · Not SMS ›</Text>
+        </Pressable>
         <Pressable accessibilityLabel="Toggle messaging tools" onPress={() => setShowTools((value) => !value)} style={styles.toolsToggle}>
           <Text style={styles.toolsToggleText}>Announcements and manager tools {showTools ? "−" : "+"}</Text>
         </Pressable>
