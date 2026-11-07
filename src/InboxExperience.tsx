@@ -127,6 +127,10 @@ function ThreadExperience({
 
   useEffect(() => {
     void load();
+    const interval = setInterval(() => {
+      void load(true);
+    }, 30_000);
+    return () => clearInterval(interval);
   }, [load]);
 
   return (
@@ -229,6 +233,10 @@ export function InboxExperience() {
 
   useEffect(() => {
     void load();
+    const interval = setInterval(() => {
+      void load(true);
+    }, 30_000);
+    return () => clearInterval(interval);
   }, [load]);
 
   if (selected) {
