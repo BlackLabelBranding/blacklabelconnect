@@ -3,6 +3,9 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { supabase } from './lib/supabase';
 import { colors, spacing } from './theme';
 
+type AudienceGroup = { id: string; name: string; description: string | null; contactCount: number; phoneCount: number; eligibleToSend: number };
+type AudiencePreview = { groupId: string; contacts: number; withPhone: number; verifiedSmsConsent: number; readyToSend: boolean; notice: string };
+
 type BroadcastDraft = {
   id: string;
   title: string;
@@ -20,6 +23,10 @@ export function BroadcastExperience({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [groups, setGroups] = useState<AudienceGroup[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [preview, setPreview] = useState<AudiencePreview | null>(null);
+  const [groupError, setGroupError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -31,6 +38,24 @@ export function BroadcastExperience({ onBack }: { onBack: () => void }) {
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    let active = true;
+    void supabase.rpc('connect_broadcast_crm_groups').then(({ data, error: requestError }) => {
+      if (!active) return;
+      if (requestError) setGroupError('CRM group preview requires the Hub audience migration. ' + requestError.message);
+      else setGroups(Array.isArray(data) ? data as AudienceGroup[] : []);
+    });
+    return () => { active = false; };
+  }, []);
+
+  const chooseGroup = async (id: string) => {
+    setSelectedGroup(id);
+    setPreview(null);
+    setGroupError(null);
+    const { data, error: requestError } = await supabase.rpc('connect_broadcast_crm_group_preview', { p_group_id: id });
+    if (requestError) setGroupError(requestError.message);
+    else setPreview(data as AudiencePreview);
+  };
 
   const save = async () => {
     if (!title.trim() || !body.trim() || busy) return;
@@ -69,6 +94,21 @@ export function BroadcastExperience({ onBack }: { onBack: () => void }) {
         {saved ? <Text style={styles.success}>Draft saved to the shared Hub database.</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
+      <Text style={styles.section}>CRM audiences</Text>
+      <Text style={styles.description}>Preview existing Hub marketing groups. Group membership does not establish SMS consent, so sending stays locked.</Text>
+      {groups.map(group => (
+        <Pressable key={group.id} accessibilityRole="button" accessibilityLabel={'Preview '+group.name}
+          onPress={() => void chooseGroup(group.id)} style={[styles.draft,selectedGroup === group.id && styles.selectedGroup]}>
+          <Text style={styles.draftTitle}>{group.name}</Text>
+          <Text style={styles.meta}>{group.contactCount} contacts · {group.phoneCount} with phone · 0 verified for sending</Text>
+        </Pressable>
+      ))}
+      {preview ? <View style={styles.draft}>
+        <Text style={styles.draftTitle}>Audience preview</Text>
+        <Text style={styles.description}>{preview.contacts} contacts · {preview.withPhone} phone numbers · {preview.verifiedSmsConsent} verified SMS consent</Text>
+        <Text style={styles.error}>{preview.notice}</Text>
+      </View> : null}
+      {groupError ? <Text style={styles.error}>{groupError}</Text> : null}
       <Text style={styles.section}>Your broadcast drafts</Text>
       {loading ? <ActivityIndicator color={colors.amber}/> : drafts.length ? drafts.map(draft => (
         <View key={draft.id} style={styles.draft}>
@@ -99,5 +139,6 @@ const styles = StyleSheet.create({
   section:{color:colors.soft,fontWeight:'800',fontSize:14,marginTop:spacing.lg},
   draft:{borderColor:colors.line,borderWidth:1,backgroundColor:colors.surface,borderRadius:8,padding:spacing.md,gap:spacing.sm},
   draftTitle:{color:colors.text,fontSize:15,fontWeight:'800'},
+  selectedGroup:{borderColor:colors.amber},
   meta:{color:colors.amber,fontSize:11},
 });
