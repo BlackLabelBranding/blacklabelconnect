@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -110,6 +110,8 @@ function ThreadExperience({
   onBack: () => void;
 }) {
   const [thread, setThread] = useState<EmployeeInboxThread | null>(null);
+  const threadScrollRef = useRef<ScrollView>(null);
+  const initialScrollPending = useRef(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -129,6 +131,7 @@ function ThreadExperience({
   }, [conversation.id]);
 
   useEffect(() => {
+    initialScrollPending.current = true;
     void load();
     const interval = setInterval(() => {
       void load(true);
@@ -161,6 +164,13 @@ function ThreadExperience({
       </View>
 
       <ScrollView
+        ref={threadScrollRef}
+        onContentSizeChange={() => {
+          if (initialScrollPending.current && !loading && thread?.messages.length) {
+            threadScrollRef.current?.scrollToEnd({ animated: false });
+            initialScrollPending.current = false;
+          }
+        }}
         contentContainerStyle={styles.threadContent}
         showsVerticalScrollIndicator={false}
       >
@@ -281,8 +291,8 @@ export function InboxExperience() {
           <Text style={styles.broadcastEntrySubtitle}>Read internal company updates ›</Text>
         </Pressable>
 
-        <Pressable accessibilityLabel="Open SMS broadcasts" onPress={() => setShowBroadcasts(true)} style={styles.broadcastEntry}>
-          <Text style={styles.broadcastEntryTitle}>SMS Broadcasts</Text>
+        <Pressable accessibilityLabel="Open employee broadcast drafts" onPress={() => setShowBroadcasts(true)} style={styles.broadcastEntry}>
+          <Text style={styles.broadcastEntryTitle}>Employee broadcasts</Text>
           <Text style={styles.broadcastEntrySubtitle}>Create announcements and manage campaign drafts ›</Text>
         </Pressable>
 
