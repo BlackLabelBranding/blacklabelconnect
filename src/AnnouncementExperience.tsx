@@ -11,8 +11,14 @@ export function AnnouncementExperience({ onBack }: { onBack: () => void }) {
  const [error,setError] = useState<string | null>(null);
  const refresh = useCallback(async () => {
    setLoading(true); setError(null);
+   if (!supabase) {
+     setItems([]);
+     setError('Connect is not configured. Check the Supabase environment settings.');
+     setLoading(false);
+     return;
+   }
    const {data,error:failure}=await supabase.rpc('connect_my_broadcast_announcements');
-   if(failure) setError(failure.message);
+   if(failure) { setItems([]); setError(failure.message); }
    else setItems(Array.isArray(data) ? data as Announcement[] : []);
    setLoading(false);
  },[]);
