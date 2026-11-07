@@ -30,6 +30,7 @@ import {
 import { fetchEmployeeInbox, fetchEmployeeInboxThread } from './services/employeeInbox';
 import { colors, spacing } from './theme';
 import { BroadcastExperience } from './BroadcastExperience';
+import { AnnouncementExperience } from './AnnouncementExperience';
 
 function ConversationRow({
   conversation,
@@ -215,6 +216,7 @@ export function InboxExperience() {
   const [inbox, setInbox] = useState<EmployeeInbox | null>(null);
   const [selected, setSelected] = useState<EmployeeInboxConversation | null>(null);
   const [showBroadcasts, setShowBroadcasts] = useState(false);
+  const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -241,6 +243,7 @@ export function InboxExperience() {
     return () => clearInterval(interval);
   }, [load]);
 
+  if (showAnnouncements) return <AnnouncementExperience onBack={() => setShowAnnouncements(false)} />;
   if (showBroadcasts) return <BroadcastExperience onBack={() => setShowBroadcasts(false)} />;
 
   if (selected) {
@@ -264,6 +267,11 @@ export function InboxExperience() {
             {refreshing ? <ActivityIndicator color={colors.text} /> : <RefreshCw color={colors.text} size={20} />}
           </Pressable>
         </View>
+
+        <Pressable accessibilityLabel="Open employee announcements" onPress={() => setShowAnnouncements(true)} style={styles.broadcastEntry}>
+          <Text style={styles.broadcastEntryTitle}>Employee announcements</Text>
+          <Text style={styles.broadcastEntrySubtitle}>Read internal company updates ›</Text>
+        </Pressable>
 
         <Pressable accessibilityLabel="Open SMS broadcasts" onPress={() => setShowBroadcasts(true)} style={styles.broadcastEntry}>
           <Text style={styles.broadcastEntryTitle}>SMS Broadcasts</Text>
