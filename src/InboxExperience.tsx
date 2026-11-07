@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
+  TextInput,
   StyleSheet,
   Text,
   View,
@@ -13,6 +14,7 @@ import {
   Inbox as InboxIcon,
   MessageSquare,
   RefreshCw,
+  Send,
 } from 'lucide-react-native';
 
 import type {
@@ -110,6 +112,7 @@ function ThreadExperience({
   onBack: () => void;
 }) {
   const [thread, setThread] = useState<EmployeeInboxThread | null>(null);
+  const [draft, setDraft] = useState('');
   const threadScrollRef = useRef<ScrollView>(null);
   const initialScrollPending = useRef(true);
   const [error, setError] = useState<string | null>(null);
@@ -194,6 +197,27 @@ function ThreadExperience({
           <StatePanel title="No messages yet" detail="This conversation has no message history." />
         )}
       </ScrollView>
+      <View style={styles.composer}>
+        <TextInput
+          accessibilityLabel="Message draft"
+          multiline
+          maxLength={1600}
+          onChangeText={setDraft}
+          placeholder="Write a reply…"
+          placeholderTextColor={colors.muted}
+          style={styles.composerInput}
+          value={draft}
+        />
+        <Pressable
+          accessibilityLabel="Send reply unavailable until secure messaging is connected"
+          accessibilityState={{ disabled: true }}
+          disabled
+          style={styles.composerSendDisabled}
+        >
+          <Send color={colors.muted} size={19} />
+        </Pressable>
+      </View>
+      <Text style={styles.composerNotice}>Replies are not enabled yet. Drafts are not sent or saved.</Text>
     </View>
   );
 }
@@ -353,6 +377,10 @@ const styles = StyleSheet.create({
   stateCopy: { color: colors.muted, fontSize: 13, lineHeight: 18, textAlign: 'center' },
   retryButton: { backgroundColor: colors.text, borderRadius: 7, marginTop: 6, paddingHorizontal: 18, paddingVertical: 10 },
   retryText: { color: colors.canvas, fontSize: 12, fontWeight: '800' },
+  composer: { alignItems: 'flex-end', borderTopColor: colors.line, borderTopWidth: 1, flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, paddingTop: 10 },
+  composerInput: { backgroundColor: colors.surfaceRaised, borderColor: colors.line, borderRadius: 12, borderWidth: 1, color: colors.text, flex: 1, fontSize: 14, maxHeight: 120, minHeight: 44, paddingHorizontal: 12, paddingVertical: 10 },
+  composerSendDisabled: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, height: 44, justifyContent: 'center', opacity: 0.55, width: 44 },
+  composerNotice: { color: colors.muted, fontSize: 10, paddingBottom: 10, paddingHorizontal: spacing.md, paddingTop: 5 },
   threadHeader: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', minHeight: 68, paddingHorizontal: spacing.sm },
   iconButton: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
   threadHeaderCopy: { flex: 1, minWidth: 0, paddingHorizontal: spacing.xs },
