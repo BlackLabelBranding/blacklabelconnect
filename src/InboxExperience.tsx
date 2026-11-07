@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
+  TextInput,
   StyleSheet,
   Text,
   View,
@@ -13,6 +14,7 @@ import {
   Inbox as InboxIcon,
   MessageSquare,
   RefreshCw,
+  Send,
 } from 'lucide-react-native';
 
 import type {
@@ -110,6 +112,7 @@ function ThreadExperience({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [replyDraft, setReplyDraft] = useState('');
 
   const load = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -181,6 +184,24 @@ function ThreadExperience({
           <StatePanel title="No messages yet" detail="This conversation has no message history." />
         )}
       </ScrollView>
+      <View style={styles.replyComposer}>
+        <TextInput
+          accessibilityLabel="Draft SMS reply"
+          multiline
+          maxLength={1600}
+          onChangeText={setReplyDraft}
+          placeholder="Write an SMS reply"
+          placeholderTextColor={colors.muted}
+          style={styles.replyInput}
+          value={replyDraft}
+        />
+        <View style={styles.replyAction}>
+          <Send color={colors.muted} size={20} />
+        </View>
+      </View>
+      <Text style={styles.replyNotice}>
+        Draft only — sending will be enabled after Hub SMS authorization is verified.
+      </Text>
     </View>
   );
 }
@@ -324,6 +345,11 @@ const styles = StyleSheet.create({
   threadTitle: { color: colors.text, fontSize: 16, fontWeight: '800', textAlign: 'center' },
   threadStatus: { color: colors.muted, fontSize: 10, marginTop: 3, textAlign: 'center', textTransform: 'uppercase' },
   threadContent: { gap: spacing.md, padding: spacing.md, paddingBottom: spacing.xl },
+  replyComposer: { alignItems: 'center', backgroundColor: colors.surface, borderTopColor: colors.line, borderTopWidth: 1, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  replyInput: { backgroundColor: colors.surfaceRaised, borderColor: colors.line, borderRadius: 8, borderWidth: 1, color: colors.text, flex: 1, fontSize: 14, maxHeight: 120, minHeight: 44, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm },
+  replyAction: { alignItems: 'center', justifyContent: 'center', width: 38 },
+  replyNotice: { color: colors.muted, fontSize: 10, paddingBottom: spacing.sm, paddingHorizontal: spacing.md },
+
   messageWrap: { alignSelf: 'flex-start', maxWidth: '84%' },
   messageWrapOutbound: { alignSelf: 'flex-end' },
   messageSender: { color: colors.muted, fontSize: 10, fontWeight: '700', marginBottom: 5, marginLeft: 4 },
