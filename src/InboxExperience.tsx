@@ -29,6 +29,7 @@ import {
 } from './inbox';
 import { fetchEmployeeInbox, fetchEmployeeInboxThread } from './services/employeeInbox';
 import { colors, spacing } from './theme';
+import { BroadcastExperience } from './BroadcastExperience';
 
 function ConversationRow({
   conversation,
@@ -213,6 +214,7 @@ function StatePanel({
 export function InboxExperience() {
   const [inbox, setInbox] = useState<EmployeeInbox | null>(null);
   const [selected, setSelected] = useState<EmployeeInboxConversation | null>(null);
+  const [showBroadcasts, setShowBroadcasts] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -239,6 +241,8 @@ export function InboxExperience() {
     return () => clearInterval(interval);
   }, [load]);
 
+  if (showBroadcasts) return <BroadcastExperience onBack={() => setShowBroadcasts(false)} />;
+
   if (selected) {
     return <ThreadExperience conversation={selected} onBack={() => setSelected(null)} />;
   }
@@ -260,6 +264,11 @@ export function InboxExperience() {
             {refreshing ? <ActivityIndicator color={colors.text} /> : <RefreshCw color={colors.text} size={20} />}
           </Pressable>
         </View>
+
+        <Pressable accessibilityLabel="Open SMS broadcasts" onPress={() => setShowBroadcasts(true)} style={styles.broadcastEntry}>
+          <Text style={styles.broadcastEntryTitle}>SMS Broadcasts</Text>
+          <Text style={styles.broadcastEntrySubtitle}>Create announcements and manage campaign drafts ›</Text>
+        </Pressable>
 
         {loading ? (
           <StatePanel busy title="Loading your inbox" detail="Pulling your authorized conversations." />
@@ -335,5 +344,8 @@ const styles = StyleSheet.create({
   messageMedia: { color: colors.amber, fontSize: 10, fontWeight: '700', marginTop: 8 },
   messageTime: { color: colors.muted, fontSize: 9, marginLeft: 4, marginTop: 4 },
   messageTimeOutbound: { marginLeft: 0, marginRight: 4, textAlign: 'right' },
+  broadcastEntry: { backgroundColor: colors.amberSoft, borderColor: colors.amber, borderWidth: 1, borderRadius: 8, padding: spacing.md, marginBottom: spacing.md, gap: 4 },
+  broadcastEntryTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  broadcastEntrySubtitle: { color: colors.soft, fontSize: 12 },
   pressed: { opacity: 0.72 },
 });
