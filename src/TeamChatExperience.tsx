@@ -96,14 +96,14 @@ export function TeamChatExperience({ onBack }: { onBack: () => void }) {
   </View>;
 }
 const styles = StyleSheet.create({
- root:{flex:1,minWidth:0,width:'100%'},header:{flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.md,borderBottomWidth:1,borderBottomColor:colors.border},
+ root:{flex:1,minWidth:0,width:'100%'},header:{flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.md,borderBottomWidth:1,borderBottomColor:colors.line},
  title:{color:colors.text,fontWeight:'700',fontSize:18},channel:{color:colors.amber,fontSize:10,fontWeight:'800'},
  error:{color:'#ef7777',padding:spacing.md},list:{padding:spacing.md,paddingBottom:spacing.xl},
  section:{color:colors.amber,fontSize:11,fontWeight:'800',marginTop:spacing.lg,marginBottom:spacing.sm},
- row:{padding:spacing.md,borderBottomWidth:1,borderBottomColor:colors.border,gap:4},
+ row:{padding:spacing.md,borderBottomWidth:1,borderBottomColor:colors.line,gap:4},
  name:{color:colors.text,fontWeight:'700',fontSize:15},muted:{color:colors.muted,fontSize:12},
  messages:{padding:spacing.md,gap:spacing.sm},bubble:{maxWidth:'83%',alignSelf:'flex-start',backgroundColor:colors.surface,borderRadius:16,padding:spacing.md},
- mine:{alignSelf:'flex-end',backgroundColor:colors.card},body:{color:colors.text,fontSize:15},time:{color:colors.muted,fontSize:10,marginTop:6},
- composer:{flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.md,borderTopWidth:1,borderTopColor:colors.border},
+ mine:{alignSelf:'flex-end',backgroundColor:colors.surfaceRaised},body:{color:colors.text,fontSize:15},time:{color:colors.muted,fontSize:10,marginTop:6},
+ composer:{flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.md,borderTopWidth:1,borderTopColor:colors.line},
  input:{flex:1,minHeight:42,maxHeight:110,color:colors.text,fontSize:15}
 });
