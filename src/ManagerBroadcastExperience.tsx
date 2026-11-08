@@ -20,7 +20,7 @@ export function ManagerBroadcastExperience({ onBack }: { onBack: () => void }) {
  },[]);
  useEffect(()=>{void refresh();},[refresh]);
  const act=async(item:ReviewItem,action:'approve'|'reject'|'publish')=>{
-  if(busy)return;
+  if(!supabase || busy)return;
   setBusy(item.id);setError(null);setNotice(null);
   const result=action==='publish'
    ? await supabase!.rpc('connect_publish_approved_broadcast',{p_broadcast_id:item.id})
