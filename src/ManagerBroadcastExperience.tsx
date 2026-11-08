@@ -12,7 +12,8 @@ export function ManagerBroadcastExperience({ onBack }: { onBack: () => void }) {
  const [notice,setNotice]=useState<string | null>(null);
  const refresh=useCallback(async()=>{
   setLoading(true);setError(null);
-  const {data,error:failure}=await supabase.rpc('connect_manager_broadcast_queue');
+  if (!supabase) {setError('Messaging is not configured.');setLoading(false);return;}
+  const {data,error:failure}=await supabase!.rpc('connect_manager_broadcast_queue');
   if(failure)setError(failure.message);
   else setItems(Array.isArray(data)?data as ReviewItem[]:[]);
   setLoading(false);
@@ -22,8 +23,8 @@ export function ManagerBroadcastExperience({ onBack }: { onBack: () => void }) {
   if(busy)return;
   setBusy(item.id);setError(null);setNotice(null);
   const result=action==='publish'
-   ? await supabase.rpc('connect_publish_approved_broadcast',{p_broadcast_id:item.id})
-   : await supabase.rpc('connect_review_broadcast',{p_broadcast_id:item.id,p_approve:action==='approve',p_note:null});
+   ? await supabase!.rpc('connect_publish_approved_broadcast',{p_broadcast_id:item.id})
+   : await supabase!.rpc('connect_review_broadcast',{p_broadcast_id:item.id,p_approve:action==='approve',p_note:null});
   if(result.error)setError(result.error.message);
   else {setNotice(action==='publish'?'Announcement published to the employee in-app queue. External push delivery is not enabled.':action==='approve'?'Broadcast approved. Publishing is a separate action.':'Broadcast rejected.');await refresh();}
   setBusy(null);
