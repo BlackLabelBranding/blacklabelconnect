@@ -225,7 +225,7 @@ export function CalendarExperience() {
               <View style={styles.agenda}>
                 {visibleEvents.map((event, index) => (
                   <View key={event.id}>
-                    {index === 0 || formatDayLabel(visibleEvents[index - 1]) !== formatDayLabel(event)
+                    {index === 0 || formatDayLabel(visibleEvents[index - 1]!) !== formatDayLabel(event)
                       ? <Text style={styles.dayLabel}>{formatDayLabel(event)}</Text>
                       : null}
                     <EventRow event={event} />

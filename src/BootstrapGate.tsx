@@ -48,13 +48,14 @@ export function BootstrapGate() {
       return;
     }
 
+    const client = supabase;
     let active = true;
-    void supabase.auth.getSession().then(async ({ data, error }) => {
+    void client.auth.getSession().then(async ({ data, error }) => {
       if (!active) return;
       if (error) {
         setState({ status: 'signed-out', error: error.message });
       } else if (data.session) {
-        const userResult = await supabase.auth.getUser();
+        const userResult = await client.auth.getUser();
         if (!active) return;
         if (userResult.error || !userResult.data.user) {
           setState({ status: 'signed-out', error: 'Your Black Label session has expired. Sign in again.' });
@@ -66,7 +67,7 @@ export function BootstrapGate() {
       }
     });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: authListener } = client.auth.onAuthStateChange((event, session) => {
       if (!active) return;
       if (event === 'SIGNED_OUT' || !session) {
         setState({ status: 'signed-out' });
@@ -80,21 +81,21 @@ export function BootstrapGate() {
         ? null
         : AppState.addEventListener('change', (nextState) => {
             if (nextState === 'active') {
-              supabase.auth.startAutoRefresh();
+              client.auth.startAutoRefresh();
             } else {
-              supabase.auth.stopAutoRefresh();
+              client.auth.stopAutoRefresh();
             }
           });
 
     if (Platform.OS !== 'web' && AppState.currentState === 'active') {
-      supabase.auth.startAutoRefresh();
+      client.auth.startAutoRefresh();
     }
 
     return () => {
       active = false;
       authListener.subscription.unsubscribe();
       appStateListener?.remove();
-      if (Platform.OS !== 'web') supabase.auth.stopAutoRefresh();
+      if (Platform.OS !== 'web') client.auth.stopAutoRefresh();
     };
   }, [loadBootstrap]);
 
@@ -116,7 +117,7 @@ export function BootstrapGate() {
           supabase
             ? {
                 label: 'Sign out',
-                onPress: () => void supabase.auth.signOut(),
+                onPress: () => void supabase?.auth.signOut(),
               }
             : undefined
         }
