@@ -33,7 +33,8 @@ export function BroadcastExperience({ onBack }: { onBack: () => void }) {
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, error: requestError } = await supabase.rpc('connect_list_sms_broadcast_drafts');
+    if (!supabase) { setError('Messaging is not configured.'); setLoading(false); return; }
+    const { data, error: requestError } = await supabase!.rpc('connect_list_sms_broadcast_drafts');
     if (requestError) setError('Broadcast drafts are unavailable until the shared Hub migration is deployed. ' + requestError.message);
     else setDrafts(Array.isArray(data) ? data as BroadcastDraft[] : []);
     setLoading(false);
@@ -41,8 +42,9 @@ export function BroadcastExperience({ onBack }: { onBack: () => void }) {
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
+    if (!supabase) { setGroupError('Messaging is not configured.'); return; }
     let active = true;
-    void supabase.rpc('connect_broadcast_crm_groups').then(({ data, error: requestError }) => {
+    void supabase?.rpc('connect_broadcast_crm_groups').then(({ data, error: requestError }) => {
       if (!active) return;
       if (requestError) setGroupError('CRM group preview requires the Hub audience migration. ' + requestError.message);
       else setGroups(Array.isArray(data) ? data as AudienceGroup[] : []);
@@ -51,19 +53,20 @@ export function BroadcastExperience({ onBack }: { onBack: () => void }) {
   }, []);
 
   const chooseGroup = async (id: string) => {
+    if (!supabase) { setGroupError('Messaging is not configured.'); return; }
     setSelectedGroup(id);
     setPreview(null);
     setGroupError(null);
-    const { data, error: requestError } = await supabase.rpc('connect_broadcast_crm_group_preview', { p_group_id: id });
+    const { data, error: requestError } = await supabase!.rpc('connect_broadcast_crm_group_preview', { p_group_id: id });
     if (requestError) setGroupError(requestError.message);
     else setPreview(data as AudiencePreview);
   };
 
   const submitReview = async (id: string) => {
-    if (submitting || !channels.length) return;
+    if (!supabase || submitting || !channels.length) return;
     setSubmitting(id);
     setError(null);
-    const { error: requestError } = await supabase.rpc('connect_submit_broadcast_review', {
+    const { error: requestError } = await supabase!.rpc('connect_submit_broadcast_review', {
       p_broadcast_id: id, p_audience: 'employees', p_channels: channels.filter(channel => channel === 'push' || channel === 'inapp'),
     });
     if (requestError) setError(requestError.message);
@@ -76,11 +79,11 @@ export function BroadcastExperience({ onBack }: { onBack: () => void }) {
   };
 
   const save = async () => {
-    if (!title.trim() || !body.trim() || busy) return;
+    if (!supabase || !title.trim() || !body.trim() || busy) return;
     setBusy(true);
     setSaved(false);
     setError(null);
-    const { error: requestError } = await supabase.rpc('connect_create_sms_broadcast_draft', {
+    const { error: requestError } = await supabase!.rpc('connect_create_sms_broadcast_draft', {
       p_title: title.trim(),
       p_body: body.trim(),
     });
