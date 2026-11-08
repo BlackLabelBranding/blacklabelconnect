@@ -44,7 +44,7 @@ export function BroadcastExperience({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     if (!supabase) { setGroupError('Messaging is not configured.'); return; }
     let active = true;
-    void supabase?.rpc('connect_broadcast_crm_groups').then(({ data, error: requestError }) => {
+    void supabase.rpc('connect_broadcast_crm_groups').then(({ data, error: requestError }) => {
       if (!active) return;
       if (requestError) setGroupError('CRM group preview requires the Hub audience migration. ' + requestError.message);
       else setGroups(Array.isArray(data) ? data as AudienceGroup[] : []);
