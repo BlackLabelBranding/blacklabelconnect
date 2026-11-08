@@ -15,15 +15,15 @@ test('accepts the shared Black Label Supabase Auth project', () => {
 
 test('rejects a different Supabase project', () => {
   assert.match(
-    validateSharedAuthUrl('https://another-project.supabase.co'),
+    validateSharedAuthUrl('https://another-project.supabase.co') ?? '',
     /shared Black Label authentication project/,
   );
 });
 
 test('rejects missing and insecure auth URLs', () => {
-  assert.match(validateSharedAuthUrl(undefined), /EXPO_PUBLIC_SUPABASE_URL/);
+  assert.match(validateSharedAuthUrl(undefined) ?? '', /EXPO_PUBLIC_SUPABASE_URL/);
   assert.match(
-    validateSharedAuthUrl(`http://${BLACK_LABEL_AUTH_PROJECT_REF}.supabase.co`),
+    validateSharedAuthUrl(`http://${BLACK_LABEL_AUTH_PROJECT_REF}.supabase.co`) ?? '',
     /shared Black Label authentication project/,
   );
 });
