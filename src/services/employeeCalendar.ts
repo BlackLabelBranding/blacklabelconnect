@@ -8,7 +8,7 @@ export async function fetchEmployeeCalendar(now = new Date()): Promise<EmployeeC
   }
 
   const window = getEmployeeCalendarWindow(now);
-  const { data, error } = await supabase.rpc('mobile_employee_calendar', {
+  const { data, error } = await supabase.rpc('mobile_employee_schedule', {
     p_start_at: window.startsAt,
     p_end_at: window.endsAt,
   });
