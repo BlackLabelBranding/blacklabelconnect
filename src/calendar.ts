@@ -5,7 +5,7 @@ import type {
   MobileEmployeeCalendarResponse,
 } from './contracts/calendar';
 
-const CONTRACT_NAME = 'black_label_connect.employee_calendar';
+const CONTRACT_NAME = 'black_label_connect.employee_schedule';
 const CONTRACT_VERSION = 1;
 const MAX_EVENTS = 500;
 
@@ -82,8 +82,25 @@ export function adaptEmployeeCalendar(value: unknown): EmployeeCalendar {
   }
 
   const response = value as unknown as MobileEmployeeCalendarResponse;
-  const events = response.events
-    .map(adaptEvent)
+  const assignments = (value as Record<string, unknown>).assignments;
+  if (!Array.isArray(assignments) || assignments.length > MAX_EVENTS) {
+    throw new Error('The employee schedule assignments are malformed.');
+  }
+  const assignmentEvents = assignments.map((item): EmployeeCalendarEvent => {
+    if (!isRecord(item) || !isString(item.id) || !isString(item.title) || !isIsoDate(item.starts_at) ||
+        !(item.ends_at === null || isIsoDate(item.ends_at)) || !isNullableString(item.location)) {
+      throw new Error('The employee schedule contains a malformed assignment.');
+    }
+    return {
+      id: `assignment:${item.id}`, title: item.title, description: isNullableString(item.description) ? item.description : null,
+      eventType: 'crew assignment', category: 'work', status: isString(item.assignment_status) ? item.assignment_status : 'assigned',
+      priority: 'normal', startsAt: item.starts_at, endsAt: item.ends_at, allDay: false,
+      timezone: isNullableString(item.timezone) ? item.timezone : null, location: item.location,
+      meetingUrl: null,
+    };
+  });
+  const events = [...response.events.map(adaptEvent), ...assignmentEvents]
+    .filter((event, index, list) => list.findIndex((candidate) => candidate.id === event.id) === index)
     .sort((left, right) => left.startsAt.localeCompare(right.startsAt) || left.id.localeCompare(right.id));
 
   return {
