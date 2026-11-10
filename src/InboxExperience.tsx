@@ -256,7 +256,6 @@ export function InboxExperience() {
   const [selected, setSelected] = useState<EmployeeInboxConversation | null>(null);
   const [showBroadcasts, setShowBroadcasts] = useState(false);
   const [channel, setChannel] = useState<'team' | 'sms'>('team');
-  const [showTeamChat, setShowTeamChat] = useState(false);
   const [showTools, setShowTools] = useState(false);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [showManagerApprovals, setShowManagerApprovals] = useState(false);
@@ -286,7 +285,6 @@ export function InboxExperience() {
     return () => clearInterval(interval);
   }, [load]);
 
-  if (showTeamChat) return <TeamChatExperience onBack={() => setShowTeamChat(false)} />;
   if (showManagerApprovals) return <ManagerBroadcastExperience onBack={() => setShowManagerApprovals(false)} />;
   if (showAnnouncements) return <AnnouncementExperience onBack={() => setShowAnnouncements(false)} />;
   if (showBroadcasts) return <BroadcastExperience onBack={() => setShowBroadcasts(false)} />;
@@ -297,7 +295,7 @@ export function InboxExperience() {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} style={channel === 'team' ? { flexGrow: 0 } : { flex: 1 }}>
         <View style={styles.pageHead}>
           <View style={styles.pageCopy}>
             <Text style={styles.kicker}>BLACK LABEL MESSAGES</Text>
@@ -323,17 +321,7 @@ export function InboxExperience() {
             <Text style={[styles.channelTabText, channel === 'sms' && styles.channelTabTextActive]}>SMS · External</Text>
           </Pressable>
         </View>
-        {channel === 'team' ? (
-          <View style={styles.teamHero}>
-            <View style={styles.teamHeroIcon}><UsersRound color={colors.amber} size={26} /></View>
-            <Text style={styles.teamHeroTitle}>Your team, one conversation away.</Text>
-            <Text style={styles.teamHeroCopy}>Message coworkers inside Black Label Connect. No phone numbers or SMS needed.</Text>
-            <Pressable onPress={() => setShowTeamChat(true)} style={styles.teamHeroAction}>
-              <Text style={styles.teamHeroActionText}>Open team conversations</Text>
-              <ChevronRight color={colors.canvas} size={18} />
-            </Pressable>
-          </View>
-        ) : (
+        {channel === 'sms' ? (
           <View style={styles.smsIntro}>
             <Smartphone color={colors.amber} size={20} />
             <View style={{ flex: 1 }}>
@@ -341,10 +329,10 @@ export function InboxExperience() {
               <Text style={styles.smsIntroCopy}>Use SMS for clients, vendors and other contacts who aren't on Connect. SMS history is currently view-only.</Text>
             </View>
           </View>
-        )}
-        {channel === "team" ? <Pressable accessibilityLabel="Toggle messaging tools" onPress={() => setShowTools((value) => !value)} style={styles.toolsToggle}>
+        ) : null}
+        {channel === "sms" ? null : <Pressable accessibilityLabel="Toggle messaging tools" onPress={() => setShowTools((value) => !value)} style={styles.toolsToggle}>
           <Text style={styles.toolsToggleText}>Announcements and manager tools {showTools ? "−" : "+"}</Text>
-        </Pressable> : null}
+        </Pressable> }
         {showTools && channel === "team" ? <>
         <Pressable accessibilityLabel="Open manager broadcast approvals" onPress={() => setShowManagerApprovals(true)} style={styles.broadcastEntry}>
           <Text style={styles.broadcastEntryTitle}>Manager approvals</Text>
@@ -388,6 +376,7 @@ export function InboxExperience() {
           <StatePanel title="Your inbox is clear" detail="No external SMS conversations are available right now." />
         )}
       </ScrollView>
+      {channel === 'team' ? <View style={{ flex: 1, minHeight: 0 }}><TeamChatExperience embedded onBack={() => undefined} /></View> : null}
     </View>
   );
 }

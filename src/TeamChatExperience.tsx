@@ -13,7 +13,7 @@ async function rpc<T>(name: string, args?: Record<string, unknown>): Promise<T> 
   if (error) throw new Error(error.message);
   return data as T;
 }
-export function TeamChatExperience({ onBack }: { onBack: () => void }) {
+export function TeamChatExperience({ onBack, embedded = false }: { onBack: () => void; embedded?: boolean }) {
   const [peers, setPeers] = useState<Peer[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [selected, setSelected] = useState<Peer | null>(null);
@@ -62,13 +62,13 @@ export function TeamChatExperience({ onBack }: { onBack: () => void }) {
     finally { setBusy(false); }
   };
   return <View style={styles.root}>
-    <View style={styles.header}>
+    {(!embedded || selected) ? <View style={styles.header}>
       <Pressable onPress={selected ? () => setSelected(null) : onBack} accessibilityLabel="Back"><ArrowLeft color={colors.text} size={22}/></Pressable>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.title}>{selected ? selected.name : 'Team messages'}</Text>
         <Text style={styles.channel}>INTERNAL ONLY · NOT SMS</Text>
       </View>
-    </View>
+    </View> : null}
     {error ? <Text style={styles.error}>{error}</Text> : null}
     {selected ? <>
       <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={styles.messages} onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })}>
