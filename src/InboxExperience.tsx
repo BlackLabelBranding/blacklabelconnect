@@ -332,7 +332,7 @@ export function InboxExperience() {
         ) : null}
         {channel === "sms" ? null : <Pressable accessibilityLabel="Toggle messaging tools" onPress={() => setShowTools((value) => !value)} style={styles.toolsToggle}>
           <Text style={styles.toolsToggleText}>Announcements and manager tools {showTools ? "−" : "+"}</Text>
-        </Pressable> : null}
+        </Pressable> }
         {showTools && channel === "team" ? <>
         <Pressable accessibilityLabel="Open manager broadcast approvals" onPress={() => setShowManagerApprovals(true)} style={styles.broadcastEntry}>
           <Text style={styles.broadcastEntryTitle}>Manager approvals</Text>
