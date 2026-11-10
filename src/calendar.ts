@@ -6,7 +6,7 @@ import type {
 } from './contracts/calendar';
 
 const CONTRACT_NAME = 'black_label_connect.employee_calendar';
-const CONTRACT_VERSION = 1;
+const SUPPORTED_CONTRACT_VERSIONS = [1, 2];
 const MAX_EVENTS = 500;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -67,7 +67,7 @@ export function adaptEmployeeCalendar(value: unknown): EmployeeCalendar {
     throw new Error('The employee calendar response is malformed.');
   }
 
-  if (value.contract.name !== CONTRACT_NAME || value.contract.version !== CONTRACT_VERSION) {
+  if (value.contract.name !== CONTRACT_NAME || !SUPPORTED_CONTRACT_VERSIONS.includes(value.contract.version as number)) {
     throw new Error('The employee calendar contract version is not supported.');
   }
 
@@ -87,7 +87,7 @@ export function adaptEmployeeCalendar(value: unknown): EmployeeCalendar {
     .sort((left, right) => left.startsAt.localeCompare(right.startsAt) || left.id.localeCompare(right.id));
 
   return {
-    contractVersion: 1,
+    contractVersion: response.contract.version as 1 | 2,
     generatedAt: response.contract.generated_at,
     range: {
       startsAt: response.range.starts_at,
