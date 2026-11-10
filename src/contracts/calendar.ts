@@ -17,7 +17,7 @@ export interface EmployeeCalendarEvent {
 }
 
 export interface EmployeeCalendar {
-  contractVersion: 1;
+  contractVersion: 1 | 2;
   generatedAt: string;
   range: {
     startsAt: string;
