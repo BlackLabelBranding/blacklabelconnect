@@ -15,41 +15,19 @@ const Screen = ({ children }: { children: React.ReactNode }) => (
 );
 
 export function HomeScreen({ bootstrap }: { bootstrap: MobileBootstrap }) {
-  const contractor = bootstrap.activePersona === 'contractor';
   const firstName = bootstrap.user.displayName.split(/\s+/)[0] || 'there';
+  const today = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric',
+  }).format(new Date());
   return (
     <Screen>
       <View style={styles.greeting}>
-        <Text style={styles.kicker}>{contractor ? 'CONTRACTOR VIEW' : 'MONDAY · SEPTEMBER 28'}</Text>
-        <Text style={styles.title}>Good evening, {firstName}.</Text>
-        <Text style={styles.subtitle}>{contractor ? 'One assignment needs your response.' : 'Here is what needs attention next.'}</Text>
+        <Text style={styles.kicker}>{today.toUpperCase()} · CENTRAL TIME</Text>
+        <Text style={styles.title}>Welcome, {firstName}.</Text>
+        <Text style={styles.subtitle}>Your Black Label workspace is ready.</Text>
       </View>
-
-      <View style={styles.statusStrip}>
-        <View>
-          <Text style={styles.statusLabel}>CLOCK STATUS</Text>
-          <Text style={styles.statusValue}>{contractor ? 'Not scheduled' : 'Clocked out'}</Text>
-        </View>
-        <View style={styles.statusRule} />
-        <View>
-          <Text style={styles.statusLabel}>NEXT</Text>
-          <Text style={styles.statusValue}>{contractor ? 'Respond by 9 AM' : 'Team call · 9:30 AM'}</Text>
-        </View>
-      </View>
-
-      <SectionHeader title="Priority" action="See all" />
-      {contractor ? (
-        <ListRow eyebrow="Response required" title="Brand ambassador shift" detail="Friday · 6:00 PM · Oak & Main" meta="$180" tone="amber" onPress={() => undefined} />
-      ) : (
-        <>
-          <ListRow eyebrow="Due tonight" title="Approve launch photo set" detail="12 images are ready for review." meta="8:00 PM" tone="amber" onPress={() => undefined} />
-          <ListRow title="Confirm Friday staffing" detail="Two open roles remain for Oak & Main." meta="2 open" onPress={() => undefined} />
-        </>
-      )}
-
-      <SectionHeader title="Today" />
-      <ListRow title="Team operations call" detail="Google Meet · Black Label Branding" meta="9:30 AM" tone="green" onPress={() => undefined} />
-      <ListRow title="Venue walkthrough" detail="Oak & Main · 1420 Market Street" meta="2:00 PM" onPress={() => undefined} />
+      <SectionHeader title="Your workspace" />
+      <Text style={styles.pageSubtitle}>Open Calendar to see your scheduled events, Work for assignments, or Inbox for messages and invitations. Only information available to your account will appear.</Text>
     </Screen>
   );
 }
