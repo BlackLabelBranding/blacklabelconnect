@@ -13,6 +13,8 @@ import {
   ChevronRight,
   Inbox as InboxIcon,
   MessageSquare,
+  UsersRound,
+  Smartphone,
   RefreshCw,
   Send,
 } from 'lucide-react-native';
@@ -253,6 +255,7 @@ export function InboxExperience() {
   const [inbox, setInbox] = useState<EmployeeInbox | null>(null);
   const [selected, setSelected] = useState<EmployeeInboxConversation | null>(null);
   const [showBroadcasts, setShowBroadcasts] = useState(false);
+  const [channel, setChannel] = useState<'team' | 'sms'>('team');
   const [showTeamChat, setShowTeamChat] = useState(false);
   const [showTools, setShowTools] = useState(false);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
@@ -310,14 +313,39 @@ export function InboxExperience() {
           </Pressable>
         </View>
 
-        <Pressable accessibilityLabel="Open internal team messages" onPress={() => setShowTeamChat(true)} style={styles.broadcastEntry}>
-          <Text style={styles.broadcastEntryTitle}>Team messages</Text>
-          <Text style={styles.broadcastEntrySubtitle}>Internal employee chat · Not SMS ›</Text>
-        </Pressable>
-        <Pressable accessibilityLabel="Toggle messaging tools" onPress={() => setShowTools((value) => !value)} style={styles.toolsToggle}>
+        <View style={styles.channelTabs}>
+          <Pressable onPress={() => setChannel('team')} accessibilityRole="tab" accessibilityState={{ selected: channel === 'team' }} style={[styles.channelTab, channel === 'team' && styles.channelTabActive]}>
+            <UsersRound color={channel === 'team' ? colors.canvas : colors.soft} size={17} />
+            <Text style={[styles.channelTabText, channel === 'team' && styles.channelTabTextActive]}>Team</Text>
+          </Pressable>
+          <Pressable onPress={() => setChannel('sms')} accessibilityRole="tab" accessibilityState={{ selected: channel === 'sms' }} style={[styles.channelTab, channel === 'sms' && styles.channelTabActive]}>
+            <Smartphone color={channel === 'sms' ? colors.canvas : colors.soft} size={17} />
+            <Text style={[styles.channelTabText, channel === 'sms' && styles.channelTabTextActive]}>SMS · External</Text>
+          </Pressable>
+        </View>
+        {channel === 'team' ? (
+          <View style={styles.teamHero}>
+            <View style={styles.teamHeroIcon}><UsersRound color={colors.amber} size={26} /></View>
+            <Text style={styles.teamHeroTitle}>Your team, one conversation away.</Text>
+            <Text style={styles.teamHeroCopy}>Message coworkers inside Black Label Connect. No phone numbers or SMS needed.</Text>
+            <Pressable onPress={() => setShowTeamChat(true)} style={styles.teamHeroAction}>
+              <Text style={styles.teamHeroActionText}>Open team conversations</Text>
+              <ChevronRight color={colors.canvas} size={18} />
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.smsIntro}>
+            <Smartphone color={colors.amber} size={20} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.smsIntroTitle}>Outside the team?</Text>
+              <Text style={styles.smsIntroCopy}>Use SMS for clients, vendors and other contacts who aren't on Connect. SMS history is currently view-only.</Text>
+            </View>
+          </View>
+        )}
+        {channel === "team" ? <Pressable accessibilityLabel="Toggle messaging tools" onPress={() => setShowTools((value) => !value)} style={styles.toolsToggle}>
           <Text style={styles.toolsToggleText}>Announcements and manager tools {showTools ? "−" : "+"}</Text>
-        </Pressable>
-        {showTools ? <>
+        </Pressable> : null}
+        {showTools && channel === "team" ? <>
         <Pressable accessibilityLabel="Open manager broadcast approvals" onPress={() => setShowManagerApprovals(true)} style={styles.broadcastEntry}>
           <Text style={styles.broadcastEntryTitle}>Manager approvals</Text>
           <Text style={styles.broadcastEntrySubtitle}>Review and publish employee announcements ›</Text>
@@ -334,7 +362,7 @@ export function InboxExperience() {
         </Pressable>
 
         </> : null}
-        {loading ? (
+        {channel === "team" ? null : loading ? (
           <StatePanel busy title="Loading your inbox" detail="Pulling your authorized conversations." />
         ) : error ? (
           <StatePanel
@@ -357,7 +385,7 @@ export function InboxExperience() {
             ))}
           </View>
         ) : (
-          <StatePanel title="Your inbox is clear" detail="No employee conversations are available right now." />
+          <StatePanel title="Your inbox is clear" detail="No external SMS conversations are available right now." />
         )}
       </ScrollView>
     </View>
@@ -367,6 +395,20 @@ export function InboxExperience() {
 const styles = StyleSheet.create({
   container: { flex: 1, minWidth: 0, width: '100%', overflow: 'hidden' },
   content: { paddingBottom: spacing.xl, paddingHorizontal: spacing.md, width: '100%' },
+  channelTabs: { flexDirection: 'row', backgroundColor: colors.surfaceRaised, borderColor: colors.line, borderWidth: 1, borderRadius: 12, padding: 5, gap: 5, marginBottom: spacing.md },
+  channelTab: { flex: 1, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 9 },
+  channelTabActive: { backgroundColor: colors.text },
+  channelTabText: { color: colors.soft, fontSize: 13, fontWeight: '800' },
+  channelTabTextActive: { color: colors.canvas },
+  teamHero: { backgroundColor: colors.surface, borderColor: colors.line, borderWidth: 1, borderRadius: 14, padding: 22, gap: 12 },
+  teamHeroIcon: { backgroundColor: colors.amberSoft, borderRadius: 12, width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
+  teamHeroTitle: { color: colors.text, fontSize: 21, fontWeight: '800' },
+  teamHeroCopy: { color: colors.muted, fontSize: 13, lineHeight: 20 },
+  teamHeroAction: { backgroundColor: colors.text, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+  teamHeroActionText: { color: colors.canvas, fontSize: 13, fontWeight: '800' },
+  smsIntro: { flexDirection: 'row', gap: 12, borderColor: colors.line, borderWidth: 1, borderRadius: 12, backgroundColor: colors.surface, padding: 16, marginBottom: spacing.md },
+  smsIntroTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  smsIntroCopy: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
   toolsToggle: { padding: spacing.md, marginBottom: spacing.sm },
   toolsToggleText: { color: colors.soft, fontSize: 12, fontWeight: '700' },
   pageHead: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingBottom: spacing.lg, paddingTop: spacing.lg },
