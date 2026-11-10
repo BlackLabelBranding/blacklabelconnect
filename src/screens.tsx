@@ -15,7 +15,7 @@ const Screen = ({ children }: { children: React.ReactNode }) => (
 );
 
 export function HomeScreen({ bootstrap }: { bootstrap: MobileBootstrap }) {
-  const firstName = bootstrap.user.displayName.split(/\\s+/)[0] || 'there';
+  const firstName = bootstrap.user.displayName.split(/\s+/)[0] || 'there';
   const today = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric',
   }).format(new Date());
