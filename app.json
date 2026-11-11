@@ -21,7 +21,7 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./public/favicon.svg"
+      "favicon": "./public/favicon.png"
     },
     "plugins": [
       "expo-notifications"
