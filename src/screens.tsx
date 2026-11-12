@@ -221,13 +221,19 @@ export function MoreScreen({
       <ListRow title="Time clock" detail="Clock in, clock out and review your punches" onPress={()=>setSection('clock')} />
       <ListRow title="Files" detail="Upload and access your private employee documents" onPress={()=>setSection('files')} />
       <ListRow title="Notification settings" detail="Email, SMS, push and priority preferences" onPress={()=>setSection('notifications')} />
-      <SectionHeader title="Access" />
-      <View style={styles.accessLine}><ShieldCheck color={colors.green} size={20} /><Text style={styles.accessText}>Permissions issued by Black Label Hub</Text></View>
-      <View style={styles.accessLine}><Bell color={colors.amber} size={20} /><Text style={styles.accessText}>Push device: {pushStatus === 'registered' ? 'registered' : pushStatus === 'checking' ? 'checking registration' : pushStatus === 'unsupported' ? 'native app required' : pushStatus === 'denied' ? 'permission or preference disabled' : 'registration failed'}</Text></View>
-      {pushError ? <Text style={{color:colors.amber}}>{pushError}</Text> : null}
-      <View style={styles.accessLine}><BriefcaseBusiness color={colors.muted} size={20} /><Text style={styles.accessText}>{bootstrap.memberships.length} workspace memberships</Text></View>
-
-      <View style={styles.accessLine}><MapPin color={colors.muted} size={20} /><Text style={styles.accessText}>Central time</Text></View>
+      <SectionHeader title="Your roles" />
+      <Text style={styles.pageSubtitle}>Your responsibilities and access across Black Label.</Text>
+      {(() => {
+        const prettify = (value: string) => value.replace(/[_-]+/g,' ').replace(/\\b\\w/g,letter=>letter.toUpperCase());
+        const unique = Array.from(new Set([
+          ...bootstrap.roles,
+          ...bootstrap.personas.filter(role=>role!=='employee' && role!=='contractor'),
+          ...bootstrap.memberships.filter(item=>item.accountId===bootstrap.activeAccount.id).map(item=>item.role),
+        ].map(role=>role.trim().toLowerCase()).filter(role=>role && !['user','authenticated','member'].includes(role))));
+        return unique.length ? unique.map(role=><View key={role} style={styles.accessLine}><ShieldCheck color={colors.green} size={19}/><Text style={styles.accessText}>{prettify(role)}</Text></View>) : <Text style={styles.pageSubtitle}>Your assigned roles will appear here when available.</Text>;
+      })()}
+      <SectionHeader title="Notifications" />
+      <ListRow title="Notification preferences" detail="Choose how Black Label reaches you" onPress={()=>setSection('notifications')} />
       <SectionHeader title="Session" />
       <ListRow title="Sign out" detail={bootstrap.user.displayName} onPress={onSignOut} />
     </Screen>
