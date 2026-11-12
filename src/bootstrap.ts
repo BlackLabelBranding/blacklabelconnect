@@ -65,6 +65,7 @@ export function adaptMobileBootstrap(value: unknown): MobileBootstrap {
     },
     activePersona: contractor ? 'contractor' : 'employee',
     personas,
+    roles: Array.isArray(response.authorization?.roles) ? response.authorization.roles.filter((role): role is string => typeof role === 'string') : [],
     activeAccount: {
       id: activeAccount ? String(activeAccount.id) : '',
       name: activeAccount?.name || 'Black Label Branding',
