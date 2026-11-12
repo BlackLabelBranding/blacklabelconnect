@@ -224,13 +224,39 @@ export function MoreScreen({
       <SectionHeader title="Your roles" />
       <Text style={styles.pageSubtitle}>Your responsibilities and access across Black Label.</Text>
       {(() => {
-        const prettify = (value: string) => value.replace(/[_-]+/g,' ').replace(/\\b\\w/g,letter=>letter.toUpperCase());
-        const unique = Array.from(new Set([
+        const labels: Record<string,string> = {
+          owner: 'Owner',
+          business_owner: 'Owner',
+          administrator: 'Administrator',
+          admin: 'Administrator',
+          super_admin: 'System Administrator',
+          account_manager: 'Account Manager',
+          model: 'Model',
+          brand_ambassador: 'Brand Ambassador',
+          talent: 'Talent',
+          staff: 'Team Member',
+          employee: 'Team Member',
+          team_member: 'Team Member',
+          contractor: 'Contractor',
+          freelancer: 'Contractor',
+          manager: 'Manager',
+          sales: 'Sales',
+          sales_representative: 'Sales Representative',
+          event_manager: 'Event Manager',
+          promoter: 'Promoter',
+          content_creator: 'Content Creator',
+          customer: 'Client',
+          contact: 'Client Contact'
+        };
+        const normalize = (role: string) => role.trim().toLowerCase().replace(/[\\s-]+/g,'_');
+        const raw = [
           ...bootstrap.roles,
-          ...bootstrap.personas.filter(role=>role!=='employee' && role!=='contractor'),
+          ...bootstrap.personas.filter(role=>!['user','employee','customer'].includes(role)),
           ...bootstrap.memberships.filter(item=>item.accountId===bootstrap.activeAccount.id).map(item=>item.role),
-        ].map(role=>role.trim().toLowerCase()).filter(role=>role && !['user','authenticated','member'].includes(role))));
-        return unique.length ? unique.map(role=><View key={role} style={styles.accessLine}><ShieldCheck color={colors.green} size={19}/><Text style={styles.accessText}>{prettify(role)}</Text></View>) : <Text style={styles.pageSubtitle}>Your assigned roles will appear here when available.</Text>;
+        ];
+        const unique = Array.from(new Set(raw.map(normalize).filter(role=>role && !['user','authenticated','member','contact','employee'].includes(role))));
+        const display = Array.from(new Set(unique.map(role=>labels[role]??role.replace(/_/g,' ').replace(/\\b\\w/g,letter=>letter.toUpperCase()))));
+        return display.length ? display.map(role=><View key={role} style={styles.accessLine}><ShieldCheck color={colors.green} size={19}/><Text style={styles.accessText}>{role}</Text></View>) : <Text style={styles.pageSubtitle}>Your role hasn't been assigned yet. Ask your manager to update your team profile.</Text>;
       })()}
       <SectionHeader title="Notifications" />
       <ListRow title="Notification preferences" detail="Choose how Black Label reaches you" onPress={()=>setSection('notifications')} />
