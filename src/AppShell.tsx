@@ -18,6 +18,13 @@ export function AppShell({
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [employeePhoto, setEmployeePhoto] = useState<string | null>(null);
+  const [employeeTitle, setEmployeeTitle] = useState<string | null>(null);
+  useEffect(() => {
+    if (!supabase) return;
+    let active = true;
+    void supabase.from('connect_employee_titles').select('display_title').eq('user_id',bootstrap.user.id).maybeSingle().then(({data,error})=>{if(active)setEmployeeTitle(error ? null : data?.display_title??null);});
+    return ()=>{active=false;};
+  },[bootstrap.user.id]);
   useEffect(() => {
     if (!supabase) return;
     let active = true;
@@ -51,7 +58,7 @@ export function AppShell({
           {activeTab === 'inbox' ? <InboxScreen /> : null}
           {activeTab === 'calendar' ? <CalendarScreen /> : null}
           {activeTab === 'work' ? <WorkScreen bootstrap={bootstrap} /> : null}
-          {activeTab === 'more' ? <MoreScreen bootstrap={bootstrap} onSignOut={onSignOut} pushStatus={pushRegistration.status} pushError={pushRegistration.error} employeePhoto={employeePhoto} onPhotoChanged={setEmployeePhoto} /> : null}
+          {activeTab === 'more' ? <MoreScreen bootstrap={bootstrap} onSignOut={onSignOut} pushStatus={pushRegistration.status} pushError={pushRegistration.error} employeePhoto={employeePhoto} onPhotoChanged={setEmployeePhoto} employeeTitle={employeeTitle} /> : null}
         </View>
         <TabBar
           activeTab={activeTab}
