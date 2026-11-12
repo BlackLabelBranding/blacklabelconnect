@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Alert, Image, Pressable, ActivityIndicator } from 'react-native';
+import { Image, Pressable, ActivityIndicator, Switch, TextInput, Platform } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from './lib/supabase';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -55,6 +57,14 @@ export function MoreScreen({
   bootstrap: MobileBootstrap;
   onSignOut: () => void;
 }) {
+  const [section, setSection] = useState<'main' | 'notifications' | 'files' | 'clock'>('main');
+  const [prefs, setPrefs] = useState({ email_enabled: true, sms_enabled: false, push_enabled: true, high_priority_only: false });
+  const [prefsBusy, setPrefsBusy] = useState(false);
+  const [clockBusy, setClockBusy] = useState(false);
+  const [punches, setPunches] = useState<Array<{ id: string; clock_in: string; clock_out: string | null }>>([]);
+  const [files, setFiles] = useState<Array<{ name: string; id?: string }>>([]);
+  const [fileBusy, setFileBusy] = useState(false);
+  const [toolError, setToolError] = useState<string | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -92,6 +102,108 @@ export function MoreScreen({
     } catch (err) { setPhotoError(err instanceof Error ? err.message : 'Photo could not be saved.'); }
     finally { setPhotoBusy(false); }
   }
+  useEffect(() => {
+    if (!supabase) return;
+    let active = true;
+    void (async () => {
+      const [settings, shifts, stored] = await Promise.all([
+        supabase.from('notification_preferences').select('email_enabled,sms_enabled,push_enabled,high_priority_only').eq('user_id',bootstrap.user.id).maybeSingle(),
+        supabase.from('time_punches').select('id,clock_in,clock_out').eq('user_id',bootstrap.user.id).order('clock_in',{ascending:false}).limit(20),
+        supabase.storage.from('connect-employee-files').list(bootstrap.user.id,{limit:100,sortBy:{column:'name',order:'asc'}})
+      ]);
+      if (!active) return;
+      if (settings.data) setPrefs({email_enabled:settings.data.email_enabled ?? true,sms_enabled:settings.data.sms_enabled ?? false,push_enabled:settings.data.push_enabled ?? true,high_priority_only:settings.data.high_priority_only ?? false});
+      if (shifts.data) setPunches(shifts.data);
+      if (stored.data) setFiles(stored.data.filter(x=>!!x.name));
+    })();
+    return () => { active = false; };
+  },[bootstrap.user.id]);
+  async function savePreference(key: keyof typeof prefs, value: boolean) {
+    if (!supabase || prefsBusy) return;
+    const previous = prefs; setPrefs({...prefs,[key]:value});setPrefsBusy(true);setToolError(null);
+    const {error} = await supabase.from('notification_preferences').upsert({user_id:bootstrap.user.id,[key]:value},{onConflict:'user_id'});
+    if(error){setPrefs(previous);setToolError(error.message);}
+    setPrefsBusy(false);
+  }
+  async function punch(action:'in'|'out') {
+    if(!supabase || clockBusy)return;
+    setClockBusy(true);setToolError(null);
+    const {error}=await supabase.rpc('mobile_clock_action',{p_action:action});
+    if(error)setToolError(error.message);
+    else {
+      const {data, error:loadError}=await supabase.from('time_punches').select('id,clock_in,clock_out').eq('user_id',bootstrap.user.id).order('clock_in',{ascending:false}).limit(20);
+      if(loadError)setToolError(loadError.message);
+      else setPunches(data??[]);
+    }
+    setClockBusy(false);
+  }
+  async function uploadEmployeeFile() {
+    if(!supabase || fileBusy)return;
+    setToolError(null);
+    const result=await DocumentPicker.getDocumentAsync({type:['application/pdf','image/jpeg','image/png','text/plain'],copyToCacheDirectory:true});
+    if(result.canceled||!result.assets[0])return;
+    const asset=result.assets[0];
+    if(asset.size && asset.size>10485760){setToolError('File must be 10 MB or smaller.');return;}
+    setFileBusy(true);
+    try{
+      let bytes:Uint8Array;
+      if(Platform.OS==='web'){
+        const response=await fetch(asset.uri);bytes=new Uint8Array(await response.arrayBuffer());
+      }else{
+        const encoded=await FileSystem.readAsStringAsync(asset.uri,{encoding:FileSystem.EncodingType.Base64});
+        const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+        const cleaned=encoded.replace(/[^A-Za-z0-9+/]/g,'');
+        const out=new Uint8Array(Math.floor(cleaned.length*3/4));let count=0,buffer=0,bits=0;
+        for(const char of cleaned){const digit=alphabet.indexOf(char);buffer=(buffer<<6)|digit;bits+=6;if(bits>=8){bits-=8;out[count++]=(buffer>>bits)&255;}}
+        bytes=out.slice(0,count);
+      }
+      const safe=asset.name.replace(/[^a-zA-Z0-9._-]/g,'_').slice(0,100);
+      const path=`${bootstrap.user.id}/${Date.now()}_${safe}`;
+      const {error}=await supabase.storage.from('connect-employee-files').upload(path,bytes,{contentType:asset.mimeType??'application/octet-stream',upsert:false});
+      if(error)throw error;
+      const {data, error:listingError}=await supabase.storage.from('connect-employee-files').list(bootstrap.user.id,{limit:100});
+      if(listingError)throw listingError;
+      setFiles(data??[]);
+    }catch(error){setToolError(error instanceof Error?error.message:'Upload failed.');}
+    finally{setFileBusy(false);}
+  }
+  async function openEmployeeFile(name:string){
+    if(!supabase)return;
+    setToolError(null);
+    const {data,error}=await supabase.storage.from('connect-employee-files').createSignedUrl(`${bootstrap.user.id}/${name}`,60);
+    if(error||!data?.signedUrl){setToolError(error?.message??'Unable to open file.');return;}
+    const {Linking}=await import('react-native');
+    await Linking.openURL(data.signedUrl);
+  }
+  const activePunch=punches.find(p=>!p.clock_out);
+  if(section!=='main')return (
+    <Screen>
+      <Pressable onPress={()=>{setSection('main');setToolError(null);}} style={{paddingTop:24,paddingBottom:16}}><Text style={{color:colors.amber,fontWeight:'700'}}>‹ Back to More</Text></Pressable>
+      <Text style={styles.title}>{section==='notifications'?'Notification Settings':section==='files'?'My Files':'Time Clock'}</Text>
+      {toolError?<Text style={{color:colors.amber,marginVertical:12}}>{toolError}</Text>:null}
+      {section==='notifications'?<>
+        <Text style={styles.pageSubtitle}>Choose which channels can notify you. Push delivery also requires device registration and permission.</Text>
+        {([
+          ['email_enabled','Email notifications'],
+          ['push_enabled','Push notifications'],
+          ['sms_enabled','SMS notifications'],
+          ['high_priority_only','High priority only']
+        ] as const).map(([key,label])=><View key={key} style={[styles.accessLine,{justifyContent:'space-between'}]}><Text style={styles.accessText}>{label}</Text><Switch value={prefs[key]} disabled={prefsBusy} onValueChange={v=>void savePreference(key,v)}/></View>)}
+      </>:null}
+      {section==='clock'?<>
+        <Text style={styles.pageSubtitle}>{activePunch?'Clocked in since '+new Date(activePunch.clock_in).toLocaleString('en-US',{timeZone:'America/Chicago'}):'You are currently clocked out.'}</Text>
+        <Pressable disabled={clockBusy} onPress={()=>void punch(activePunch?'out':'in')} style={{backgroundColor:colors.amber,padding:16,borderRadius:12,marginTop:18,alignItems:'center'}}><Text style={{fontWeight:'800',color:colors.canvas}}>{clockBusy?'Saving…':activePunch?'Clock out':'Clock in'}</Text></Pressable>
+        <SectionHeader title="Recent punches" />
+        {punches.map(p=><View key={p.id} style={styles.accessLine}><Text style={styles.accessText}>{new Date(p.clock_in).toLocaleString('en-US',{timeZone:'America/Chicago'})} — {p.clock_out?new Date(p.clock_out).toLocaleString('en-US',{timeZone:'America/Chicago'}):'Active'}</Text></View>)}
+      </>:null}
+      {section==='files'?<>
+        <Text style={styles.pageSubtitle}>Your private employee files. Upload PDF, JPG, PNG or TXT (up to 10 MB). Only your account can access these uploads.</Text>
+        <Pressable disabled={fileBusy} onPress={()=>void uploadEmployeeFile()} style={{backgroundColor:colors.amber,padding:16,borderRadius:12,marginTop:18,alignItems:'center'}}><Text style={{fontWeight:'800',color:colors.canvas}}>{fileBusy?'Uploading…':'Upload a file'}</Text></Pressable>
+        <SectionHeader title="Your uploads" />
+        {files.length===0?<Text style={styles.pageSubtitle}>No files uploaded yet.</Text>:files.map(file=><ListRow key={file.name} title={file.name} detail="Tap to open securely" onPress={()=>void openEmployeeFile(file.name)}/>)}
+      </>:null}
+    </Screen>
+  );
   return (
     <Screen>
       <View style={styles.profile}>
@@ -107,7 +219,9 @@ export function MoreScreen({
       <Text style={styles.pageSubtitle}>Tap your photo to change it. Your employee photo is shared with Black Label Hub.</Text>
       {photoError ? <Text style={{ color: colors.amber, marginTop: 10 }}>{photoError}</Text> : null}
       <SectionHeader title="Tools" />
-      <Text style={styles.pageSubtitle}>Time clock, files and notification preferences are not connected yet. They will appear here once the employee services are ready.</Text>
+      <ListRow title="Time clock" detail="Clock in, clock out and review your punches" onPress={()=>setSection('clock')} />
+      <ListRow title="Files" detail="Upload and access your private employee documents" onPress={()=>setSection('files')} />
+      <ListRow title="Notification settings" detail="Email, SMS, push and priority preferences" onPress={()=>setSection('notifications')} />
       <SectionHeader title="Access" />
       <View style={styles.accessLine}><ShieldCheck color={colors.green} size={20} /><Text style={styles.accessText}>Permissions issued by Black Label Hub</Text></View>
       <View style={styles.accessLine}><Bell color={colors.amber} size={20} /><Text style={styles.accessText}>{bootstrap.notifications.deviceRegistered ? "Device registered" : "Push notification registration not confirmed"}</Text></View>
