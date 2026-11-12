@@ -12,6 +12,7 @@ export interface MobileBootstrap {
   };
   activePersona: Persona;
   personas: string[];
+  roles: string[];
   activeAccount: {
     id: string;
     name: string;
