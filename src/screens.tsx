@@ -57,6 +57,7 @@ export function MoreScreen({
   pushError,
   employeePhoto,
   onPhotoChanged,
+  employeeTitle,
 }: {
   bootstrap: MobileBootstrap;
   onSignOut: () => void;
@@ -64,6 +65,7 @@ export function MoreScreen({
   pushError: string | null;
   employeePhoto: string | null;
   onPhotoChanged: (url: string | null) => void;
+  employeeTitle: string | null;
 }) {
   const [section, setSection] = useState<'main' | 'notifications' | 'files' | 'clock'>('main');
   const [prefs, setPrefs] = useState({ email_enabled: true, sms_enabled: false, push_enabled: true, high_priority_only: false });
@@ -212,7 +214,7 @@ export function MoreScreen({
         </Pressable>
         <View style={styles.profileCopy}>
           <Text style={styles.profileName}>{bootstrap.user.displayName}</Text>
-          <Text style={styles.profileRole}>{bootstrap.activePersona} · {bootstrap.activeAccount.name}</Text>
+          <Text style={styles.profileRole}>{employeeTitle ?? bootstrap.activePersona} · {bootstrap.activeAccount.name}</Text>
         </View>
       </View>
       <Text style={styles.pageSubtitle}>Tap your photo to change it. Your employee photo is shared with Black Label Hub.</Text>
@@ -256,6 +258,7 @@ export function MoreScreen({
         ];
         const unique = Array.from(new Set(raw.map(normalize).filter(role=>role && !['user','authenticated','member','contact','employee'].includes(role))));
         const display = Array.from(new Set(unique.map(role=>labels[role]??role.replace(/_/g,' ').replace(/\\b\\w/g,letter=>letter.toUpperCase()))));
+        if (employeeTitle) return <View style={styles.accessLine}><ShieldCheck color={colors.green} size={19}/><Text style={styles.accessText}>{employeeTitle}</Text></View>;
         return display.length ? display.map(role=><View key={role} style={styles.accessLine}><ShieldCheck color={colors.green} size={19}/><Text style={styles.accessText}>{role}</Text></View>) : <Text style={styles.pageSubtitle}>Your role hasn't been assigned yet. Ask your manager to update your team profile.</Text>;
       })()}
       <SectionHeader title="Notifications" />
