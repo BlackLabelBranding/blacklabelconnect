@@ -30,9 +30,11 @@ const tabIcons: Record<TabKey, ComponentType<LucideProps>> = {
 export function AppHeader({
   bootstrap,
   onOpenAccount,
+  photoUrl,
 }: {
   bootstrap: MobileBootstrap;
   onOpenAccount: () => void;
+  photoUrl?: string | null;
 }) {
   const [logoFailed, setLogoFailed] = useState(false);
 
@@ -60,7 +62,7 @@ export function AppHeader({
           onPress={onOpenAccount}
           style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
         >
-          <Text style={styles.avatarText}>{bootstrap.user.initials}</Text>
+          {photoUrl ? <Image source={{uri:photoUrl}} style={{height:38,width:38,borderRadius:19}} accessibilityLabel="Employee photo" /> : <Text style={styles.avatarText}>{bootstrap.user.initials}</Text>}
         </Pressable>
       </View>
     </View>

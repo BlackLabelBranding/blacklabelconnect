@@ -55,11 +55,15 @@ export function MoreScreen({
   onSignOut,
   pushStatus,
   pushError,
+  employeePhoto,
+  onPhotoChanged,
 }: {
   bootstrap: MobileBootstrap;
   onSignOut: () => void;
   pushStatus: 'unsupported'|'checking'|'registered'|'denied'|'error';
   pushError: string | null;
+  employeePhoto: string | null;
+  onPhotoChanged: (url: string | null) => void;
 }) {
   const [section, setSection] = useState<'main' | 'notifications' | 'files' | 'clock'>('main');
   const [prefs, setPrefs] = useState({ email_enabled: true, sms_enabled: false, push_enabled: true, high_priority_only: false });
@@ -69,17 +73,8 @@ export function MoreScreen({
   const [files, setFiles] = useState<Array<{ name: string; id?: string }>>([]);
   const [fileBusy, setFileBusy] = useState(false);
   const [toolError, setToolError] = useState<string | null>(null);
-  const [photo, setPhoto] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      const { data } = await supabase!.from('team_members').select('avatar_url').eq('user_id', bootstrap.user.id).maybeSingle();
-      if (active) setPhoto(data?.avatar_url ?? null);
-    })();
-    return () => { active = false; };
-  }, [bootstrap.user.id]);
   async function changePhoto() {
     if (!supabase || photoBusy) return;
     setPhotoError(null);
@@ -102,7 +97,7 @@ export function MoreScreen({
       const url = supabase.storage.from('team-members').getPublicUrl(path).data.publicUrl;
       const { error: saveError } = await supabase.rpc('mobile_update_own_employee_photo', { p_photo_url: url });
       if (saveError) throw saveError;
-      setPhoto(url);
+      onPhotoChanged(url);
     } catch (err) { setPhotoError(err instanceof Error ? err.message : 'Photo could not be saved.'); }
     finally { setPhotoBusy(false); }
   }
@@ -212,7 +207,7 @@ export function MoreScreen({
     <Screen>
       <View style={styles.profile}>
         <Pressable onPress={() => void changePhoto()} accessibilityRole="button" accessibilityLabel="Change employee profile photo" style={styles.profileAvatar}>
-          {photo ? <Image source={{ uri: photo }} style={{ width: 56, height: 56, borderRadius: 28 }} /> : <Text style={styles.profileInitials}>{bootstrap.user.initials}</Text>}
+          {employeePhoto ? <Image source={{ uri: employeePhoto }} style={{ width: 56, height: 56, borderRadius: 28 }} /> : <Text style={styles.profileInitials}>{bootstrap.user.initials}</Text>}
           {photoBusy ? <ActivityIndicator color={colors.amber} style={{ position: 'absolute' }} /> : null}
         </Pressable>
         <View style={styles.profileCopy}>
