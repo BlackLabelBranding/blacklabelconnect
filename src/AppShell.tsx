@@ -6,6 +6,7 @@ import type { MobileBootstrap, TabKey } from './contracts/bootstrap';
 import { getEnabledTabs } from './navigation';
 import { CalendarScreen, HomeScreen, InboxScreen, MoreScreen, WorkScreen } from './screens';
 import { colors } from './theme';
+import { supabase } from './lib/supabase';
 import { useDevicePushRegistration } from './useDevicePushRegistration';
 
 export function AppShell({
@@ -16,6 +17,13 @@ export function AppShell({
   onSignOut: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
+  const [employeePhoto, setEmployeePhoto] = useState<string | null>(null);
+  useEffect(() => {
+    if (!supabase) return;
+    let active = true;
+    void supabase.from('team_members').select('avatar_url').eq('user_id',bootstrap.user.id).maybeSingle().then(({data})=>{if(active)setEmployeePhoto(data?.avatar_url??null);});
+    return ()=>{active=false;};
+  },[bootstrap.user.id]);
   const pushRegistration = useDevicePushRegistration(bootstrap.user.id);
   const { width } = useWindowDimensions();
   const tabs = useMemo(() => getEnabledTabs(bootstrap), [bootstrap]);
@@ -37,13 +45,13 @@ export function AppShell({
   return (
     <SafeAreaView style={styles.canvas}>
       <View style={[styles.app, constrained && styles.appConstrained]}>
-        <AppHeader bootstrap={bootstrap} onOpenAccount={() => setActiveTab('more')} />
+        <AppHeader bootstrap={bootstrap} photoUrl={employeePhoto} onOpenAccount={() => setActiveTab('more')} />
         <View style={styles.content}>
           {activeTab === 'home' ? <HomeScreen bootstrap={bootstrap} /> : null}
           {activeTab === 'inbox' ? <InboxScreen /> : null}
           {activeTab === 'calendar' ? <CalendarScreen /> : null}
           {activeTab === 'work' ? <WorkScreen bootstrap={bootstrap} /> : null}
-          {activeTab === 'more' ? <MoreScreen bootstrap={bootstrap} onSignOut={onSignOut} pushStatus={pushRegistration.status} pushError={pushRegistration.error} /> : null}
+          {activeTab === 'more' ? <MoreScreen bootstrap={bootstrap} onSignOut={onSignOut} pushStatus={pushRegistration.status} pushError={pushRegistration.error} employeePhoto={employeePhoto} onPhotoChanged={setEmployeePhoto} /> : null}
         </View>
         <TabBar
           activeTab={activeTab}
