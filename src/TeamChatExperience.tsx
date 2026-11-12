@@ -6,6 +6,8 @@ import { colors, spacing } from './theme';
 
 type Peer = { user_id: string; name: string };
 type Thread = { id: string; peer_id: string; peer_name: string; last_body: string | null; last_at: string | null };
+type Group = { id: string; name: string; created_at: string };
+type GroupMessage = { id: string; sender_id: string; sender_name: string; body: string; created_at: string };
 type Message = { id: string; sender_id: string; body: string; created_at: string };
 async function rpc<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   if (!supabase) throw new Error('Messaging is not configured.');
@@ -14,6 +16,9 @@ async function rpc<T>(name: string, args?: Record<string, unknown>): Promise<T> 
   return data as T;
 }
 export function TeamChatExperience({ onBack, embedded = false }: { onBack: () => void; embedded?: boolean }) {
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
   const [peers, setPeers] = useState<Peer[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [selected, setSelected] = useState<Peer | null>(null);
@@ -25,11 +30,12 @@ export function TeamChatExperience({ onBack, embedded = false }: { onBack: () =>
   const scroll = useRef<ScrollView>(null);
   const load = useCallback(async () => {
     try {
-      const [directory, list] = await Promise.all([
+      const [directory, list, groupList] = await Promise.all([
         rpc<Peer[]>('connect_messageable_employees'),
         rpc<Thread[]>('connect_my_direct_threads'),
+        rpc<Group[]>('connect_my_groups'),
       ]);
-      setPeers(directory); setThreads(list); setError('');
+      setPeers(directory); setThreads(list); setGroups(groupList); setError('');
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load team chat.'); }
   }, []);
   useEffect(() => {
@@ -50,6 +56,24 @@ export function TeamChatExperience({ onBack, embedded = false }: { onBack: () =>
     const timer = setInterval(() => void loadMessages(), 5000);
     return () => clearInterval(timer);
   }, [loadMessages, selected?.user_id]);
+  const loadGroupMessages = useCallback(async () => {
+    if (!selectedGroup) return;
+    try { setGroupMessages(await rpc<GroupMessage[]>('connect_group_messages', { p_thread: selectedGroup.id, p_limit: 100 })); setError(''); }
+    catch (e) { setError(e instanceof Error ? e.message : 'Unable to load group messages.'); }
+  }, [selectedGroup?.id]);
+  useEffect(() => {
+    void loadGroupMessages();
+    if (!selectedGroup) return;
+    const timer = setInterval(() => void loadGroupMessages(), 5000);
+    return () => clearInterval(timer);
+  }, [loadGroupMessages]);
+  const sendGroup = async () => {
+    if (!selectedGroup || !draft.trim() || busy) return;
+    setBusy(true); setError('');
+    try { await rpc<string>('connect_send_group_message', { p_thread: selectedGroup.id, p_body: draft.trim() }); setDraft(''); await loadGroupMessages(); }
+    catch (e) { setError(e instanceof Error ? e.message : 'Group message could not be sent.'); }
+    finally { setBusy(false); }
+  };
   const send = async () => {
     if (!selected || !draft.trim() || busy) return;
     setBusy(true); setError('');
@@ -62,15 +86,28 @@ export function TeamChatExperience({ onBack, embedded = false }: { onBack: () =>
     finally { setBusy(false); }
   };
   return <View style={styles.root}>
-    {(!embedded || selected) ? <View style={styles.header}>
-      <Pressable onPress={selected ? () => setSelected(null) : onBack} accessibilityLabel="Back"><ArrowLeft color={colors.text} size={22}/></Pressable>
+    {(!embedded || selected || selectedGroup) ? <View style={styles.header}>
+      <Pressable onPress={selectedGroup ? () => { setSelectedGroup(null); setDraft(''); } : selected ? () => setSelected(null) : onBack} accessibilityLabel="Back"><ArrowLeft color={colors.text} size={22}/></Pressable>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={styles.title}>{selected ? selected.name : 'Team messages'}</Text>
+        <Text style={styles.title}>{selectedGroup ? selectedGroup.name : selected ? selected.name : 'Team messages'}</Text>
         <Text style={styles.channel}>INTERNAL ONLY · NOT SMS</Text>
       </View>
     </View> : null}
     {error ? <Text style={styles.error}>{error}</Text> : null}
-    {selected ? <>
+    {selectedGroup ? <>
+      <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={styles.messages} onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })}>
+        {groupMessages.length ? groupMessages.map(m => <View key={m.id} style={[styles.bubble, m.sender_id === selfId && styles.mine]}>
+          <Text style={styles.muted}>{m.sender_name}</Text><Text style={styles.body}>{m.body}</Text>
+          <Text style={styles.time}>{new Date(m.created_at).toLocaleString()}</Text>
+        </View>) : <Text style={styles.muted}>No messages in this group yet.</Text>}
+      </ScrollView>
+      <View style={styles.composer}>
+        <TextInput multiline maxLength={4000} placeholder="Message group…" placeholderTextColor={colors.muted} style={styles.input} value={draft} onChangeText={setDraft}/>
+        <Pressable onPress={() => void sendGroup()} disabled={busy || !draft.trim()} accessibilityLabel="Send group message">
+          {busy ? <ActivityIndicator color={colors.amber}/> : <Send color={draft.trim() ? colors.amber : colors.muted} size={23}/>}
+        </Pressable>
+      </View>
+    </> : selected ? <>
       <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={styles.messages} onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })}>
         {messages.length ? messages.map(m => <View key={m.id} style={[styles.bubble, m.sender_id === selfId && styles.mine]}>
           <Text style={styles.body}>{m.body}</Text>
@@ -84,6 +121,9 @@ export function TeamChatExperience({ onBack, embedded = false }: { onBack: () =>
         </Pressable>
       </View>
     </> : <ScrollView contentContainerStyle={styles.list}>
+      <Text style={styles.section}>HUB GROUPS</Text>
+      {groups.map(g => <Pressable key={g.id} style={styles.row} onPress={() => { setSelected(null); setSelectedGroup(g); setDraft(''); }}><Text style={styles.name}>{g.name}</Text><Text style={styles.muted}>Managed in Black Label Hub</Text></Pressable>)}
+      {!groups.length ? <Text style={styles.muted}>No groups assigned. Management creates groups in Hub.</Text> : null}
       <Text style={styles.section}>RECENT TEAM CONVERSATIONS</Text>
       {threads.map(t => <Pressable key={t.id} style={styles.row} onPress={() => setSelected({ user_id: t.peer_id, name: t.peer_name })}>
         <Text style={styles.name}>{t.peer_name}</Text><Text numberOfLines={1} style={styles.muted}>{t.last_body || 'No messages yet'}</Text>
