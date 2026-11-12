@@ -14,6 +14,7 @@ const locationText=(item:{location_name:string|null;city:string|null;state:strin
 
 export function TalentWorkScreen({ bootstrap }: { bootstrap: MobileBootstrap }) {
  const [data,setData]=useState<WorkData>(EMPTY);
+ const [filter,setFilter]=useState<'tasks'|'gigs'|'invitations'>('tasks');
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState<string|null>(null);
  const [responding,setResponding]=useState<string|null>(null);
@@ -43,25 +44,28 @@ export function TalentWorkScreen({ bootstrap }: { bootstrap: MobileBootstrap }) 
   <Text style={styles.kicker}>BLACK LABEL CONNECT</Text>
   <Text style={styles.title}>Work</Text>
   <Text style={styles.muted}>Your real tasks, invitations, and confirmed assignments from Black Label Hub.</Text>
+  <View style={styles.filters}>{(['tasks','gigs','invitations'] as const).map(item=><Pressable key={item} accessibilityRole="button" accessibilityState={{selected:filter===item}} onPress={()=>setFilter(item)} style={[styles.filterButton,filter===item&&styles.filterActive]}><Text style={[styles.filterText,filter===item&&styles.filterTextActive]}>{item==='tasks'?'Tasks':item==='gigs'?'Gigs':'Invitations'}</Text></Pressable>)}</View>
   <Pressable onPress={()=>void load()} disabled={loading} style={styles.refresh}><Text style={styles.link}>{loading?'Loading…':'Refresh work'}</Text></Pressable>
   {loading?<ActivityIndicator color={colors.amber}/>:null}
   {error?<Text style={styles.error}>{error}</Text>:null}
   {notice?<Text style={styles.notice}>{notice}</Text>:null}
   {!loading&&!error?<View>
-   <Text style={styles.section}>My tasks ({openTasks.length})</Text>
+   {filter==='tasks'?<View><Text style={styles.section}>My tasks ({openTasks.length})</Text>
    {openTasks.length===0?<Text style={styles.empty}>No open tasks assigned to you.</Text>:openTasks.map(task=><View key={task.id} style={styles.card}>
     <Text style={styles.cardTitle}>{task.title}</Text>
     <Text style={styles.meta}>{task.status||'Not started'} · {task.priority||'Normal priority'} · Due {task.due_date||'not set'}</Text>
     {task.description?<Text style={styles.detail}>{task.description}</Text>:null}
    </View>)}
-   <Text style={styles.section}>My gigs ({data.gigs.length})</Text>
+   </View>:null}
+   {filter==='gigs'?<View><Text style={styles.section}>My gigs ({data.gigs.length})</Text>
    {data.gigs.length===0?<Text style={styles.empty}>No gigs currently assigned to you.</Text>:data.gigs.map(gig=><View key={gig.id} style={styles.card}>
     <Text style={styles.cardTitle}>{gig.title||'Work assignment'}</Text>
     <Text style={styles.meta}>{dateText(gig.starts_at)} · {locationText(gig)}</Text>
     <Text style={styles.detail}>Assignment: {gig.assignment_status||'Pending'} · Contract: {gig.contract_status||'Not recorded'} · Pay: {gig.pay_status||'Not recorded'}</Text>
     {gig.call_time?<Text style={styles.meta}>Call time: {gig.call_time}</Text>:null}
    </View>)}
-   <Text style={styles.section}>My invitations ({data.invitations.length})</Text>
+   </View>:null}
+   {filter==='invitations'?<View><Text style={styles.section}>My invitations ({data.invitations.length})</Text>
    {data.invitations.length===0?<Text style={styles.empty}>No invitations assigned to you.</Text>:data.invitations.map(inv=><View key={inv.id} style={styles.card}>
     <Text style={styles.cardTitle}>{inv.title||'Work opportunity'}</Text>
     <Text style={styles.meta}>{dateText(inv.starts_at)} · {locationText(inv)}</Text>
@@ -71,11 +75,17 @@ export function TalentWorkScreen({ bootstrap }: { bootstrap: MobileBootstrap }) 
      <Pressable disabled={responding===inv.id} onPress={()=>void respond(inv.id,'declined')} style={styles.secondary}><Text style={styles.link}>Decline</Text></Pressable>
     </View>:null}
    </View>)}
+   </View>:null}
   </View>:null}
  </ScrollView>;
 }
 const styles=StyleSheet.create({
  screen:{paddingHorizontal:spacing.md,paddingBottom:48},
+ filters:{flexDirection:'row',gap:6,marginTop:18},
+ filterButton:{flex:1,borderColor:colors.line,borderWidth:1,borderRadius:8,paddingVertical:12,alignItems:'center',backgroundColor:colors.surface},
+ filterActive:{backgroundColor:colors.amber,borderColor:colors.amber},
+ filterText:{color:colors.soft,fontSize:12,fontWeight:'800'},
+ filterTextActive:{color:colors.canvas},
  kicker:{color:colors.amber,fontSize:10,fontWeight:'800',marginTop:spacing.lg},
  title:{color:colors.text,fontSize:30,fontWeight:'800',marginTop:5},
  muted:{color:colors.muted,fontSize:13,marginTop:8,lineHeight:19},
