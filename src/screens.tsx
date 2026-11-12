@@ -53,9 +53,13 @@ export function WorkScreen({ bootstrap }: { bootstrap: MobileBootstrap }) {
 export function MoreScreen({
   bootstrap,
   onSignOut,
+  pushStatus,
+  pushError,
 }: {
   bootstrap: MobileBootstrap;
   onSignOut: () => void;
+  pushStatus: 'unsupported'|'checking'|'registered'|'denied'|'error';
+  pushError: string | null;
 }) {
   const [section, setSection] = useState<'main' | 'notifications' | 'files' | 'clock'>('main');
   const [prefs, setPrefs] = useState({ email_enabled: true, sms_enabled: false, push_enabled: true, high_priority_only: false });
@@ -224,7 +228,8 @@ export function MoreScreen({
       <ListRow title="Notification settings" detail="Email, SMS, push and priority preferences" onPress={()=>setSection('notifications')} />
       <SectionHeader title="Access" />
       <View style={styles.accessLine}><ShieldCheck color={colors.green} size={20} /><Text style={styles.accessText}>Permissions issued by Black Label Hub</Text></View>
-      <View style={styles.accessLine}><Bell color={colors.amber} size={20} /><Text style={styles.accessText}>{bootstrap.notifications.deviceRegistered ? "Device registered" : "Push notification registration not confirmed"}</Text></View>
+      <View style={styles.accessLine}><Bell color={colors.amber} size={20} /><Text style={styles.accessText}>Push device: {pushStatus === 'registered' ? 'registered' : pushStatus === 'checking' ? 'checking registration' : pushStatus === 'unsupported' ? 'native app required' : pushStatus === 'denied' ? 'permission or preference disabled' : 'registration failed'}</Text></View>
+      {pushError ? <Text style={{color:colors.amber}}>{pushError}</Text> : null}
       <View style={styles.accessLine}><BriefcaseBusiness color={colors.muted} size={20} /><Text style={styles.accessText}>{bootstrap.memberships.length} workspace memberships</Text></View>
 
       <View style={styles.accessLine}><MapPin color={colors.muted} size={20} /><Text style={styles.accessText}>Central time</Text></View>
