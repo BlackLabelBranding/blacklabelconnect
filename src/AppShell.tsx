@@ -6,6 +6,7 @@ import type { MobileBootstrap, TabKey } from './contracts/bootstrap';
 import { getEnabledTabs } from './navigation';
 import { CalendarScreen, HomeScreen, InboxScreen, MoreScreen, WorkScreen } from './screens';
 import { colors } from './theme';
+import { useDevicePushRegistration } from './useDevicePushRegistration';
 
 export function AppShell({
   bootstrap,
@@ -15,6 +16,7 @@ export function AppShell({
   onSignOut: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
+  const pushRegistration = useDevicePushRegistration(bootstrap.user.id);
   const { width } = useWindowDimensions();
   const tabs = useMemo(() => getEnabledTabs(bootstrap), [bootstrap]);
   const constrained = width > 720;
@@ -41,7 +43,7 @@ export function AppShell({
           {activeTab === 'inbox' ? <InboxScreen /> : null}
           {activeTab === 'calendar' ? <CalendarScreen /> : null}
           {activeTab === 'work' ? <WorkScreen bootstrap={bootstrap} /> : null}
-          {activeTab === 'more' ? <MoreScreen bootstrap={bootstrap} onSignOut={onSignOut} /> : null}
+          {activeTab === 'more' ? <MoreScreen bootstrap={bootstrap} onSignOut={onSignOut} pushStatus={pushRegistration.status} pushError={pushRegistration.error} /> : null}
         </View>
         <TabBar
           activeTab={activeTab}
