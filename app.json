@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Black Label",
+    "name": "Black Label Connect",
     "slug": "black-label-connect",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -24,7 +24,13 @@
       "favicon": "./public/favicon.png"
     },
     "plugins": [
-      "expo-notifications"
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "default",
+          "enableRemoteNotifications": true
+        }
+      ]
     ],
     "extra": {
       "eas": {
