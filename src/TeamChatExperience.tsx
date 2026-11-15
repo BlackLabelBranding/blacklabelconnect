@@ -130,7 +130,7 @@ export function TeamChatExperience({ onBack, embedded = false }: { onBack: () =>
       <TextInput accessibilityLabel="Search team conversations" placeholder="Search people, groups, messages…" placeholderTextColor={colors.muted} value={search} onChangeText={setSearch} autoCapitalize="none" style={styles.searchInput}/>
       {visibleThreads.length > 0 ? <Text style={styles.section}>RECENT CONVERSATIONS</Text> : null}
       {visibleThreads.map(t => <Pressable key={t.id} accessibilityRole="button" accessibilityLabel={`Open conversation with ${t.peer_name}`} style={styles.conversationRow} onPress={() => {setSelectedGroup(null);setSelected({ user_id: t.peer_id, name: t.peer_name });setDraft('');}}>
-        <View style={styles.avatar}><Text style={styles.avatarText}>{t.peer_name.trim().split(/\\s+/).slice(0,2).map(part => part[0]).join('').toUpperCase()}</Text></View>
+        <View style={styles.avatar}><Text style={styles.avatarText}>{t.peer_name.trim().split(/\s+/).slice(0,2).map(part => part[0]).join('').toUpperCase()}</Text></View>
         <View style={styles.rowMain}><View style={styles.rowTop}><Text numberOfLines={1} style={styles.name}>{t.peer_name}</Text><Text style={styles.previewTime}>{t.last_at ? new Date(t.last_at).toLocaleDateString(undefined,{month:'short',day:'numeric'}) : ''}</Text></View><Text numberOfLines={1} style={styles.preview}>{t.last_body || 'Start a conversation'}</Text></View>
       </Pressable>)}
       {visibleGroups.length > 0 ? <Text style={styles.section}>TEAM GROUPS</Text> : null}
@@ -139,7 +139,7 @@ export function TeamChatExperience({ onBack, embedded = false }: { onBack: () =>
       </Pressable>)}
       {visiblePeers.length > 0 ? <Text style={styles.section}>START A CONVERSATION</Text> : null}
       {visiblePeers.map(p => <Pressable key={p.user_id} accessibilityRole="button" accessibilityLabel={`Message ${p.name}`} style={styles.conversationRow} onPress={() => {setSelectedGroup(null);setSelected(p);setDraft('');}}>
-        <View style={styles.avatar}><Text style={styles.avatarText}>{p.name.trim().split(/\\s+/).slice(0,2).map(part => part[0]).join('').toUpperCase()}</Text></View><View style={styles.rowMain}><Text numberOfLines={1} style={styles.name}>{p.name}</Text><Text style={styles.preview}>Send a message</Text></View>
+        <View style={styles.avatar}><Text style={styles.avatarText}>{p.name.trim().split(/\s+/).slice(0,2).map(part => part[0]).join('').toUpperCase()}</Text></View><View style={styles.rowMain}><Text numberOfLines={1} style={styles.name}>{p.name}</Text><Text style={styles.preview}>Send a message</Text></View>
       </Pressable>)}
       {!visibleGroups.length && !visibleThreads.length && !visiblePeers.length ? <View style={styles.empty}><Text style={styles.emptyTitle}>{query ? 'No matches found' : 'No conversations yet'}</Text><Text style={styles.muted}>{query ? 'Try another name or message keyword.' : 'Your Hub groups and available teammates will appear here.'}</Text></View> : null}
     </ScrollView>}
