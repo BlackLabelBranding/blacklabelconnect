@@ -15,6 +15,14 @@ export function useDevicePushRegistration(userId: string) {
         const { data: preferences, error: prefError } = await supabase.from('notification_preferences').select('push_enabled').eq('user_id',userId).maybeSingle();
         if (prefError) throw prefError;
         if (preferences?.push_enabled === false) { if(active)setStatus('denied'); return; }
+        if (Platform.OS === 'android') {
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'Black Label Connect',
+            importance: Notifications.AndroidImportance.HIGH,
+            vibrationPattern: [0, 200, 150, 200],
+            lightColor: '#D5A64A',
+          });
+        }
         const permission = await Notifications.getPermissionsAsync();
         const granted = permission.granted ? permission : await Notifications.requestPermissionsAsync();
         if (!granted.granted) { if(active)setStatus('denied'); return; }
