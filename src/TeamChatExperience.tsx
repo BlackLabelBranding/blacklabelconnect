@@ -24,6 +24,7 @@ export function TeamChatExperience({ onBack, embedded = false }: { onBack: () =>
   const [selected, setSelected] = useState<Peer | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
+  const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [selfId, setSelfId] = useState('');
@@ -44,6 +45,11 @@ export function TeamChatExperience({ onBack, embedded = false }: { onBack: () =>
     const timer = setInterval(() => void load(), 15000);
     return () => clearInterval(timer);
   }, [load]);
+  const query = search.trim().toLocaleLowerCase();
+  const visibleGroups = groups.filter(g => g.name.toLocaleLowerCase().includes(query));
+  const visibleThreads = threads.filter(t => `${t.peer_name} ${t.last_body ?? ''}`.toLocaleLowerCase().includes(query));
+  const recentIds = new Set(threads.map(t => t.peer_id));
+  const visiblePeers = peers.filter(p => !recentIds.has(p.user_id) && p.name.toLocaleLowerCase().includes(query));
   const activeThread = threads.find(t => t.peer_id === selected?.user_id);
   const loadMessages = useCallback(async () => {
     if (!activeThread) { setMessages([]); return; }
@@ -120,18 +126,22 @@ export function TeamChatExperience({ onBack, embedded = false }: { onBack: () =>
           {busy ? <ActivityIndicator color={colors.amber}/> : <Send color={draft.trim() ? colors.amber : colors.muted} size={23}/>}
         </Pressable>
       </View>
-    </> : <ScrollView contentContainerStyle={styles.list}>
-      <Text style={styles.section}>HUB GROUPS</Text>
-      {groups.map(g => <Pressable key={g.id} style={styles.row} onPress={() => { setSelected(null); setSelectedGroup(g); setDraft(''); }}><Text style={styles.name}>{g.name}</Text><Text style={styles.muted}>Managed in Black Label Hub</Text></Pressable>)}
-      {!groups.length ? <Text style={styles.muted}>No groups assigned. Management creates groups in Hub.</Text> : null}
-      <Text style={styles.section}>RECENT TEAM CONVERSATIONS</Text>
-      {threads.map(t => <Pressable key={t.id} style={styles.row} onPress={() => setSelected({ user_id: t.peer_id, name: t.peer_name })}>
-        <Text style={styles.name}>{t.peer_name}</Text><Text numberOfLines={1} style={styles.muted}>{t.last_body || 'No messages yet'}</Text>
+    </> : <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
+      <TextInput accessibilityLabel="Search team conversations" placeholder="Search people, groups, messages…" placeholderTextColor={colors.muted} value={search} onChangeText={setSearch} autoCapitalize="none" style={styles.searchInput}/>
+      {visibleThreads.length > 0 ? <Text style={styles.section}>RECENT CONVERSATIONS</Text> : null}
+      {visibleThreads.map(t => <Pressable key={t.id} accessibilityRole="button" accessibilityLabel={`Open conversation with ${t.peer_name}`} style={styles.conversationRow} onPress={() => {setSelectedGroup(null);setSelected({ user_id: t.peer_id, name: t.peer_name });setDraft('');}}>
+        <View style={styles.avatar}><Text style={styles.avatarText}>{t.peer_name.trim().split(/\\s+/).slice(0,2).map(part => part[0]).join('').toUpperCase()}</Text></View>
+        <View style={styles.rowMain}><View style={styles.rowTop}><Text numberOfLines={1} style={styles.name}>{t.peer_name}</Text><Text style={styles.previewTime}>{t.last_at ? new Date(t.last_at).toLocaleDateString(undefined,{month:'short',day:'numeric'}) : ''}</Text></View><Text numberOfLines={1} style={styles.preview}>{t.last_body || 'Start a conversation'}</Text></View>
       </Pressable>)}
-      <Text style={styles.section}>START A CONVERSATION</Text>
-      {peers.map(p => <Pressable key={p.user_id} style={styles.row} onPress={() => setSelected(p)}>
-        <Text style={styles.name}>{p.name}</Text><Text style={styles.muted}>Internal team chat</Text>
+      {visibleGroups.length > 0 ? <Text style={styles.section}>TEAM GROUPS</Text> : null}
+      {visibleGroups.map(g => <Pressable key={g.id} accessibilityRole="button" accessibilityLabel={`Open group ${g.name}`} style={styles.conversationRow} onPress={() => { setSelected(null); setSelectedGroup(g); setDraft(''); }}>
+        <View style={[styles.avatar,styles.groupAvatar]}><Text style={styles.avatarText}>#</Text></View><View style={styles.rowMain}><Text numberOfLines={1} style={styles.name}>{g.name}</Text><Text style={styles.preview}>Managed by Hub</Text></View>
       </Pressable>)}
+      {visiblePeers.length > 0 ? <Text style={styles.section}>START A CONVERSATION</Text> : null}
+      {visiblePeers.map(p => <Pressable key={p.user_id} accessibilityRole="button" accessibilityLabel={`Message ${p.name}`} style={styles.conversationRow} onPress={() => {setSelectedGroup(null);setSelected(p);setDraft('');}}>
+        <View style={styles.avatar}><Text style={styles.avatarText}>{p.name.trim().split(/\\s+/).slice(0,2).map(part => part[0]).join('').toUpperCase()}</Text></View><View style={styles.rowMain}><Text numberOfLines={1} style={styles.name}>{p.name}</Text><Text style={styles.preview}>Send a message</Text></View>
+      </Pressable>)}
+      {!visibleGroups.length && !visibleThreads.length && !visiblePeers.length ? <View style={styles.empty}><Text style={styles.emptyTitle}>{query ? 'No matches found' : 'No conversations yet'}</Text><Text style={styles.muted}>{query ? 'Try another name or message keyword.' : 'Your Hub groups and available teammates will appear here.'}</Text></View> : null}
     </ScrollView>}
   </View>;
 }
@@ -140,6 +150,13 @@ const styles = StyleSheet.create({
  title:{color:colors.text,fontWeight:'700',fontSize:18},channel:{color:colors.amber,fontSize:10,fontWeight:'800'},
  error:{color:'#ef7777',padding:spacing.md},list:{padding:spacing.md,paddingBottom:spacing.xl},
  section:{color:colors.amber,fontSize:11,fontWeight:'800',marginTop:spacing.lg,marginBottom:spacing.sm},
+ searchInput:{borderColor:colors.line,borderWidth:1,backgroundColor:colors.surface,borderRadius:14,minHeight:48,paddingHorizontal:spacing.md,color:colors.text,fontSize:15,marginBottom:spacing.sm},
+ conversationRow:{flexDirection:'row',alignItems:'center',gap:12,minHeight:75,paddingVertical:12,borderBottomWidth:1,borderBottomColor:colors.line},
+ avatar:{width:48,height:48,borderRadius:24,backgroundColor:colors.surfaceRaised,alignItems:'center',justifyContent:'center'},
+ groupAvatar:{backgroundColor:'#302817'},avatarText:{color:colors.amber,fontSize:16,fontWeight:'800'},
+ rowMain:{flex:1,minWidth:0,gap:5},rowTop:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8},
+ preview:{color:colors.muted,fontSize:13},previewTime:{color:colors.muted,fontSize:11},
+ empty:{paddingVertical:40,alignItems:'center',gap:8},emptyTitle:{color:colors.text,fontWeight:'700',fontSize:16},
  row:{padding:spacing.md,borderBottomWidth:1,borderBottomColor:colors.line,gap:4},
  name:{color:colors.text,fontWeight:'700',fontSize:15},muted:{color:colors.muted,fontSize:12},
  messages:{padding:spacing.md,gap:spacing.sm},bubble:{maxWidth:'83%',alignSelf:'flex-start',backgroundColor:colors.surface,borderRadius:16,padding:spacing.md},
