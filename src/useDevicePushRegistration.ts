@@ -20,7 +20,12 @@ export function useDevicePushRegistration(userId: string) {
         if (!granted.granted) { if(active)setStatus('denied'); return; }
         const expoToken = await Notifications.getExpoPushTokenAsync({projectId:'652840aa-94e0-484f-a4a5-d887c703de95'});
         token = expoToken.data;
-        const {error:saveError} = await supabase.from('connect_push_devices').upsert({user_id:userId,platform:Platform.OS,token,enabled:true,updated_at:new Date().toISOString()},{onConflict:'platform,token'});
+        // Direct table writes are intentionally denied by RLS/grants. Use the
+        // authenticated RPC, which checks active employee status and token ownership.
+        const { error: saveError } = await supabase.rpc('connect_register_push_device', {
+          p_platform: Platform.OS,
+          p_token: token,
+        });
         if(saveError)throw saveError;
         if(active)setStatus('registered');
       } catch(e) {
