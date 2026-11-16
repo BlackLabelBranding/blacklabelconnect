@@ -9,14 +9,7 @@ type ClockStatus = 'loading' | 'in' | 'out' | 'unknown';
 type WorkTask = { id: number; status: string | null; title: string; due_date: string | null };
 type WorkResponse = { tasks?: WorkTask[] };
 type AppCard = { key: string; title: string; caption: string; accent: string; tab: TabKey; icon: typeof Inbox };
-
-const APPS: AppCard[] = [
-  { key: 'work', title: 'Black Label Work', caption: 'My tasks', accent: '#6FAFFF', tab: 'work', icon: CheckSquare2 },
-  { key: 'inbox', title: 'Messages', caption: 'Team inbox', accent: '#A99CFF', tab: 'inbox', icon: Inbox },
-  { key: 'calendar', title: 'Calendar', caption: 'Schedule', accent: '#F3BB4D', tab: 'calendar', icon: CalendarDays },
-  { key: 'time', title: 'Time Clock', caption: 'Shifts & punches', accent: '#4ED7A2', tab: 'more', icon: Clock3 },
-  { key: 'gigs', title: 'My Gigs', caption: 'Assigned events', accent: '#F18BB5', tab: 'work', icon: BriefcaseBusiness },
-];
+type CatalogApp = { app_key: string; title: string; description: string; accent: string; destination: string };
 
 const OPEN = new Set(['complete', 'completed', 'done', 'cancelled', 'canceled']);
 const firstName = (name: string) => name.split(/\s+/)[0] || 'there';
@@ -27,6 +20,8 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
   const [workLoading, setWorkLoading] = useState(bootstrap.navigation.work);
   const [workError, setWorkError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [catalogApps, setCatalogApps] = useState<CatalogApp[] | null>(null);
+  const [catalogError, setCatalogError] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!supabase) { setClock('unknown'); setWorkError(true); setWorkLoading(false); return; }
@@ -39,7 +34,14 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
     const workRequest = bootstrap.navigation.work
       ? client.rpc('mobile_employee_work')
       : Promise.resolve({ data: null, error: null });
-    const [clockResult, workResult] = await Promise.allSettled([clockRequest, workRequest]);
+    const appsRequest = client.rpc('connect_my_apps');
+    const [clockResult, workResult, appsResult] = await Promise.allSettled([clockRequest, workRequest, appsRequest]);
+    if (appsResult.status === 'fulfilled' && !appsResult.value.error && Array.isArray(appsResult.value.data)) {
+      setCatalogApps(appsResult.value.data as CatalogApp[]);
+      setCatalogError(false);
+    } else {
+      setCatalogError(true);
+    }
     if (clockResult.status !== 'fulfilled' || clockResult.value.error) {
       setClock('unknown');
     } else {
@@ -61,11 +63,23 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const available = APPS.filter((item) =>
-    item.key === 'time'
-      ? bootstrap.navigation.more
-      : bootstrap.navigation[item.tab]
-  );
+  // The catalog is authoritative. On an API failure retain only the last
+  // successfully authorized catalog; never fall back to unrestricted cards.
+  // Destinations are limited to implemented Connect tabs.
+  const cardFor = (app: CatalogApp): AppCard | null => {
+    const routes: Record<string, {tab: TabKey; icon: typeof Inbox}> = {
+      work: { tab: 'work', icon: CheckSquare2 },
+      inbox: { tab: 'inbox', icon: Inbox },
+      calendar: { tab: 'calendar', icon: CalendarDays },
+      'time-clock': { tab: 'more', icon: Clock3 },
+      gigs: { tab: 'work', icon: BriefcaseBusiness },
+    };
+    const route = routes[app.destination];
+    if (!route || !bootstrap.navigation[route.tab]) return null;
+    return { key: app.app_key, title: app.title, caption: app.description, accent: /^#[0-9a-f]{6}$/i.test(app.accent) ? app.accent : '#E8B83F', tab: route.tab, icon: route.icon };
+  };
+  const available = (catalogApps || []).map(cardFor).filter((item): item is AppCard => item !== null);
+  const canViewWork = available.some(item => item.key === 'work');
   const openTasks = tasks.filter((task) => !OPEN.has((task.status || '').toLowerCase()));
   const dateLabel = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', weekday: 'long', timeZone: 'America/Chicago' }).format(new Date());
 
@@ -93,7 +107,7 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
           </View>
           <Text style={styles.statusSmall}>Read-only status</Text>
         </View>
-        {bootstrap.navigation.work ? (
+        {canViewWork ? (
           <Pressable style={styles.statusCard} accessibilityRole="button" onPress={() => onNavigate('work')}>
             <View style={styles.statusTitle}><CheckSquare2 size={17} color="#6FAFFF"/><Text style={styles.statusCaption}>ASSIGNED TASKS</Text></View>
             {workLoading ? <ActivityIndicator size="small" color="#6FAFFF" style={styles.loader} /> :
@@ -103,7 +117,7 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
         ) : null}
       </View>
 
-      {bootstrap.navigation.work && openTasks.length > 0 && !workError ? (
+      {canViewWork && openTasks.length > 0 && !workError ? (
         <Pressable style={styles.nextTask} onPress={() => onNavigate('work')} accessibilityRole="button">
           <View style={styles.nextTaskCopy}>
             <Text style={styles.statusCaption}>NEXT UP · BLACK LABEL WORK</Text>
@@ -136,8 +150,8 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
           );
         })}
       </View>
-      {available.length === 0 ? <Text style={styles.empty}>No applications are assigned to this account. Contact your Hub administrator.</Text> : null}
-      <Text style={styles.footer}>More Black Label tools will appear here as access is granted in Hub.</Text>
+      {available.length === 0 ? <Text style={styles.empty}>{catalogApps === null ? 'Loading your applications…' : 'No applications are assigned to this account. Contact your Hub administrator.'}</Text> : null}
+      <Text style={styles.footer}>{catalogError ? 'Application permissions could not be refreshed. Showing last verified permissions.' : 'Application access is managed by Black Label Hub.'}</Text>
     </ScrollView>
   );
 }
