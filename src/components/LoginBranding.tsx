@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, RadialGradient, Stop, Path, Rect, Circle, G, Line, Polygon } from 'react-native-svg';
 
 const gold = '#E8B83F';
@@ -46,36 +46,29 @@ export function LoginAtmosphere() {
   );
 }
 
+// Original brand assets supplied by Black Label, hosted in its public Supabase Logos bucket.
+// Use the actual artwork rather than recreating either trademark with SVG/text.
+const LOGOS_BASE = 'https://xopcttkrmjvwdddawdaa.supabase.co/storage/v1/object/public/Logos/';
+const brandingLogo = { uri: LOGOS_BASE + 'blacklabellogoog.png' };
+const entertainmentLogo = { uri: LOGOS_BASE + 'Black%20label%20entertainment%20logo%20(1).png' };
+const connectIcon = { uri: LOGOS_BASE + '804FCE9F-FD54-4694-9682-9CFC158C53A1.png' };
+
 export function LoginBranding() {
   return (
     <View style={styles.brandWrap}>
       <View style={styles.divisions}>
         <View style={styles.division}>
-          <Svg width="100%" height="52" viewBox="0 0 180 58">
-            <Path d="M5 4 H174 L151 29 L174 54 H5Z" fill="#050506" stroke="#E7E7E9" strokeWidth="1.3" />
-            <TextSvgFallback />
-          </Svg>
-          <Text style={styles.divisionMain}>BLACK LABEL</Text>
-          <Text style={styles.divisionSub}>EXECUTIVE BRANDING</Text>
+          <Image source={brandingLogo} resizeMode="contain" style={styles.brandingImage} accessibilityLabel="Black Label Executive Branding" />
         </View>
         <View style={styles.divider} />
         <View style={styles.division}>
-          <View style={styles.entertainmentLine}>
-            <Text style={styles.entertainmentMain}>BLACK</Text>
-            <Svg width="15" height="36" viewBox="0 0 22 49"><Polygon points="17,0 4,24 13,24 3,49 21,18 12,18" fill={gold}/></Svg>
-            <Text style={styles.entertainmentMain}>LABEL</Text>
+          <View style={styles.entertainmentCrop}>
+            <Image source={entertainmentLogo} resizeMode="contain" style={styles.entertainmentImage} accessibilityLabel="Black Label Entertainment" />
           </View>
-          <Text style={styles.entertainmentSub}>ENTERTAINMENT</Text>
         </View>
       </View>
       <View style={styles.emblem}>
-        <Svg width="96" height="96" viewBox="0 0 100 100">
-          <Defs><LinearGradient id="metal" x1="0" x2="1" y1="0" y2="1"><Stop offset="0" stopColor="#FFFFFF"/><Stop offset=".45" stopColor="#8F96A3"/><Stop offset=".72" stopColor="#F8F8F8"/><Stop offset="1" stopColor="#858A96"/></LinearGradient></Defs>
-          <Rect x="4" y="4" width="92" height="92" rx="23" fill="#090A0D" stroke="#B9892E" strokeWidth="1.6" />
-          <Path d="M20 27 H50 Q79 27 77 43 Q76 52 64 54 Q83 57 78 72 Q74 84 50 84 H20 L31 73 H50 Q64 73 64 65 Q64 58 51 58 H29 L39 47 H50 Q63 47 63 41 Q63 35 50 35 H28Z" fill="url(#metal)" />
-          <Polygon points="59,33 44,56 54,56 44,76 69,49 57,49" fill="#F0BC46" />
-          <Path d="M8 70 Q49 20 93 50" fill="none" stroke="#DCA13C" strokeWidth="2.1" opacity=".85" />
-        </Svg>
+        <Image source={connectIcon} resizeMode="contain" style={styles.connectIcon} accessibilityLabel="Black Label Connect" />
       </View>
       <Text style={styles.blackLabel}>B L A C K   L A B E L</Text>
       <Text style={styles.connect}>CONNECT</Text>
@@ -84,21 +77,18 @@ export function LoginBranding() {
   );
 }
 
-// The source branding mark is the supplied flag-style BLACK LABEL logo.
-// Text is layered above its outline to keep it sharp and accessible on mobile.
-function TextSvgFallback() { return null; }
-
 const styles = StyleSheet.create({
   brandWrap: { alignItems: 'center', marginBottom: 20 },
   divisions: { flexDirection: 'row', alignItems: 'center', width: '100%', justifyContent: 'center', marginBottom: 21 },
-  division: { flex: 1, alignItems: 'center', justifyContent: 'center', minWidth: 0 },
-  divisionMain: { position: 'absolute', top: 14, color: '#F4F4F5', fontSize: 11, letterSpacing: 1.0, fontWeight: '700' },
-  divisionSub: { color: '#F4F4F5', fontSize: 8, letterSpacing: 1.35, fontWeight: '700', marginTop: 2 },
-  divider: { height: 40, width: 1, backgroundColor: '#C18A2A', marginHorizontal: 12 },
-  entertainmentLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  entertainmentMain: { color: gold, fontSize: 13, fontWeight: '900', letterSpacing: .5 },
-  entertainmentSub: { color: gold, fontSize: 8, letterSpacing: 2.5, fontWeight: '700', marginTop: -2 },
+  division: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', height: 65 },
+  brandingImage: { width: '100%', height: 65 },
+  divider: { height: 42, width: 1, backgroundColor: '#C18A2A', marginHorizontal: 9 },
+  entertainmentCrop: { width: '100%', height: 65, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  // Original entertainment artwork is a square with large black margins.
+  // Enlarge inside a clipped viewport to show the central gold wordmark legibly.
+  entertainmentImage: { width: 270, height: 270, maxWidth: undefined },
   emblem: { width: 105, height: 105, alignItems: 'center', justifyContent: 'center', borderRadius: 23, shadowColor: '#E7AB3B', shadowOpacity: .5, shadowRadius: 20, marginBottom: 12, elevation: 8 },
+  connectIcon: { width: 96, height: 96, borderRadius: 23 },
   blackLabel: { fontSize: 12, color: '#DDDDE3', fontWeight: '800', letterSpacing: 1.7 },
   connect: { color: '#F7F8FA', fontSize: 37, letterSpacing: 3, fontWeight: '900', fontStyle: 'italic', lineHeight: 45 },
   rule: { width: '75%', height: 2, backgroundColor: '#D7A237', marginTop: 4, opacity: .85 },
