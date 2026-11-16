@@ -10,13 +10,18 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.blacklabelbranding.connect",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "icon": "./assets/connect-icon.png"
     },
     "android": {
       "package": "com.blacklabelbranding.connect",
       "versionCode": 1,
       "permissions": [],
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/connect-icon.png",
+        "backgroundColor": "#090A0C"
+      }
     },
     "web": {
       "bundler": "metro",
@@ -36,6 +41,7 @@
       "eas": {
         "projectId": "652840aa-94e0-484f-a4a5-d887c703de95"
       }
-    }
+    },
+    "icon": "./assets/connect-icon.png"
   }
 }
