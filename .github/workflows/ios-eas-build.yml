@@ -47,6 +47,9 @@ jobs:
       - name: Validate source
         run: npm run check
 
+      - name: Prepare selected Connect icon
+        run: npm run prepare:icon
+
       - name: Install EAS CLI
         run: npm install --global eas-cli@18
 
