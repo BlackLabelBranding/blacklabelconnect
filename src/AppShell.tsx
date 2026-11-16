@@ -4,7 +4,8 @@ import { SafeAreaView, StyleSheet, Text, useWindowDimensions, View } from 'react
 import { AppHeader, TabBar } from './components';
 import type { MobileBootstrap, TabKey } from './contracts/bootstrap';
 import { getEnabledTabs } from './navigation';
-import { CalendarScreen, HomeScreen, InboxScreen, MoreScreen, WorkScreen } from './screens';
+import { CalendarScreen, InboxScreen, MoreScreen, WorkScreen } from './screens';
+import { HomeLaunchpad } from './components/HomeLaunchpad';
 import { colors } from './theme';
 import { supabase } from './lib/supabase';
 import { useDevicePushRegistration } from './useDevicePushRegistration';
@@ -54,7 +55,7 @@ export function AppShell({
       <View style={[styles.app, constrained && styles.appConstrained]}>
         <AppHeader bootstrap={bootstrap} photoUrl={employeePhoto} onOpenAccount={() => setActiveTab('more')} />
         <View style={styles.content}>
-          {activeTab === 'home' ? <HomeScreen bootstrap={bootstrap} /> : null}
+          {activeTab === 'home' ? <HomeLaunchpad bootstrap={bootstrap} onNavigate={setActiveTab} /> : null}
           {activeTab === 'inbox' ? <InboxScreen /> : null}
           {activeTab === 'calendar' ? <CalendarScreen /> : null}
           {activeTab === 'work' ? <WorkScreen bootstrap={bootstrap} /> : null}
