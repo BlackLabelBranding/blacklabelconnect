@@ -11,14 +11,6 @@ type WorkResponse = { tasks?: WorkTask[] };
 type AppCard = { key: string; title: string; caption: string; accent: string; tab: TabKey; icon: typeof Inbox };
 type CatalogApp = { app_key: string; title: string; description: string; accent: string; destination: string };
 
-const APPS: AppCard[] = [
-  { key: 'work', title: 'Black Label Work', caption: 'My tasks', accent: '#6FAFFF', tab: 'work', icon: CheckSquare2 },
-  { key: 'inbox', title: 'Messages', caption: 'Team inbox', accent: '#A99CFF', tab: 'inbox', icon: Inbox },
-  { key: 'calendar', title: 'Calendar', caption: 'Schedule', accent: '#F3BB4D', tab: 'calendar', icon: CalendarDays },
-  { key: 'time', title: 'Time Clock', caption: 'Shifts & punches', accent: '#4ED7A2', tab: 'more', icon: Clock3 },
-  { key: 'gigs', title: 'My Gigs', caption: 'Assigned events', accent: '#F18BB5', tab: 'work', icon: BriefcaseBusiness },
-];
-
 const OPEN = new Set(['complete', 'completed', 'done', 'cancelled', 'canceled']);
 const firstName = (name: string) => name.split(/\s+/)[0] || 'there';
 
