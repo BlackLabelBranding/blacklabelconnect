@@ -6,6 +6,7 @@ import {
   Linking,
   Platform,
   Pressable,
+  ScrollView,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -14,6 +15,7 @@ import {
 } from 'react-native';
 
 import { AppShell } from './AppShell';
+import { LoginAtmosphere, LoginBranding } from './components/LoginBranding';
 import { BLACK_LABEL_ACCOUNT_PORTAL_URL } from './auth/config';
 import type { MobileBootstrap } from './contracts/bootstrap';
 import { supabase, supabaseConfigError } from './lib/supabase';
@@ -170,64 +172,57 @@ function SignInScreen({ initialError }: { initialError?: string }) {
 
   return (
     <SafeAreaView style={styles.canvas}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.center}
-      >
-        <View style={styles.signIn}>
-          <Text style={styles.brand}>BLACK LABEL</Text>
-          <Text style={styles.title}>Sign in</Text>
-          <Text style={styles.detail}>
-            Use the same Black Label login you use for Hub and My Black Label.
-          </Text>
-          <TextInput
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            onChangeText={setEmail}
-            placeholder="Email"
-            placeholderTextColor={colors.muted}
-            style={styles.input}
-            value={email}
-          />
-          <TextInput
-            autoCapitalize="none"
-            autoComplete="current-password"
-            onChangeText={setPassword}
-            onSubmitEditing={() => void submit()}
-            placeholder="Password"
-            placeholderTextColor={colors.muted}
-            secureTextEntry
-            style={styles.input}
-            value={password}
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Pressable
-            disabled={busy || !email.trim() || !password}
-            onPress={() => void submit()}
-            style={({ pressed }) => [
-              styles.primaryButton,
-              (busy || !email.trim() || !password) && styles.buttonDisabled,
-              pressed && styles.buttonPressed,
-            ]}
-          >
-            {busy ? (
-              <ActivityIndicator color={colors.canvas} />
-            ) : (
-              <Text style={styles.primaryButtonText}>
-                Sign in
-              </Text>
-            )}
-          </Pressable>
-          <Pressable
-            onPress={() => void openPasswordRecovery()}
-            style={styles.secondaryButton}
-          >
-            <Text style={styles.secondaryButtonText}>
-              Forgot password?
-            </Text>
-          </Pressable>
-        </View>
+      <LoginAtmosphere />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.loginFill}>
+        <ScrollView
+          contentContainerStyle={styles.loginScroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.loginCard}>
+            <LoginBranding />
+            <Text style={styles.loginHeading}>Sign In</Text>
+            <Text style={styles.loginDetail}>Use the same Black Label login you use for Hub and My Black Label.</Text>
+            <TextInput
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              onChangeText={setEmail}
+              placeholder="Email address"
+              placeholderTextColor="#8F94A0"
+              style={styles.loginInput}
+              value={email}
+              accessibilityLabel="Email address"
+            />
+            <TextInput
+              autoCapitalize="none"
+              autoComplete="current-password"
+              onChangeText={setPassword}
+              onSubmitEditing={() => void submit()}
+              placeholder="Password"
+              placeholderTextColor="#8F94A0"
+              secureTextEntry
+              style={styles.loginInput}
+              value={password}
+              accessibilityLabel="Password"
+            />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <Pressable
+              disabled={busy || !email.trim() || !password}
+              onPress={() => void submit()}
+              style={({ pressed }) => [
+                styles.loginButton,
+                (busy || !email.trim() || !password) && styles.buttonDisabled,
+                pressed && styles.buttonPressed,
+              ]}
+            >
+              {busy ? <ActivityIndicator color="#08090C" /> : <Text style={styles.loginButtonText}>Sign In  →</Text>}
+            </Pressable>
+            <Pressable onPress={() => void openPasswordRecovery()} style={styles.secondaryButton}>
+              <Text style={styles.loginRecovery}>Forgot password?</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -268,6 +263,15 @@ function CenteredMessage({
 }
 
 const styles = StyleSheet.create({
+  loginFill: { flex: 1 },
+  loginScroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 24 },
+  loginCard: { width: '100%', maxWidth: 440, alignSelf: 'center', paddingHorizontal: 8, paddingVertical: 20 },
+  loginHeading: { color: '#FFFFFF', fontSize: 31, fontWeight: '900', textAlign: 'center', marginTop: 4 },
+  loginDetail: { color: '#CDD0D7', fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 8, marginBottom: 22 },
+  loginInput: { color: '#FFFFFF', backgroundColor: 'rgba(11,13,18,0.92)', borderWidth: 1.5, borderColor: '#C99A3E', borderRadius: 17, minHeight: 57, fontSize: 16, paddingHorizontal: 18, marginBottom: 12 },
+  loginButton: { backgroundColor: '#F4C343', borderRadius: 17, minHeight: 58, alignItems: 'center', justifyContent: 'center', marginTop: 10, borderWidth: 1, borderColor: '#FFE28C' },
+  loginButtonText: { color: '#08090C', fontSize: 19, fontWeight: '900' },
+  loginRecovery: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
   canvas: { backgroundColor: colors.canvas, flex: 1 },
   center: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: spacing.xl },
   signIn: { maxWidth: 420, width: '100%' },
