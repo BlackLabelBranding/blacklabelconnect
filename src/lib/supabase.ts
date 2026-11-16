@@ -27,6 +27,6 @@ export const supabase = supabaseConfigError
         flowType: 'pkce',
       },
       global: {
-        headers: { 'x-client-info': 'blacklabel-connect@0.1.0' },
+        headers: { 'x-client-info': 'blacklabel-connect@1.0.0' },
       },
     });
