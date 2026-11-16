@@ -156,6 +156,14 @@ function SignInScreen({ initialError }: { initialError?: string }) {
     setBusy(false);
   };
 
+  const openSupport = async (subject: string) => {
+    try {
+      await Linking.openURL(`mailto:info@blacklabel1.com?subject=${encodeURIComponent(subject)}`);
+    } catch {
+      setError('Email info@blacklabel1.com for support or account deletion requests.');
+    }
+  };
+
   const openPasswordRecovery = async () => {
     setError(undefined);
     try {
@@ -219,6 +227,12 @@ function SignInScreen({ initialError }: { initialError?: string }) {
             </Pressable>
             <Pressable onPress={() => void openPasswordRecovery()} style={styles.secondaryButton}>
               <Text style={styles.loginRecovery}>Forgot password?</Text>
+            </Pressable>
+            <Pressable accessibilityRole="link" onPress={() => void openSupport('Black Label Connect support')} style={styles.secondaryButton}>
+              <Text style={styles.loginRecovery}>Contact support</Text>
+            </Pressable>
+            <Pressable accessibilityRole="link" onPress={() => void openSupport('Black Label Connect account deletion request')} style={styles.secondaryButton}>
+              <Text style={styles.loginRecovery}>Request account deletion</Text>
             </Pressable>
           </View>
         </ScrollView>
