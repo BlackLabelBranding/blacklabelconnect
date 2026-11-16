@@ -17,7 +17,7 @@ const height = bytes.readUInt32BE(20);
 if (width !== height || width < 1024) {
   throw new Error('Connect icon must be a square PNG at least 1024px: received ' + width + 'x' + height);
 }
-for (const destination of ['assets/connect-icon.png', 'public/favicon.png', 'public/apple-touch-icon.png', 'public/icon-192.png', 'public/icon-512.png']) {
+for (const destination of ['assets/connect-icon.png', 'public/favicon.png', 'public/apple-touch-icon.png']) {
   await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, bytes);
   console.log('Prepared ' + destination + ' (' + width + 'x' + height + ')');
