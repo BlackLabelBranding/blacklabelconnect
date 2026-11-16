@@ -9,6 +9,7 @@ type ClockStatus = 'loading' | 'in' | 'out' | 'unknown';
 type WorkTask = { id: number; status: string | null; title: string; due_date: string | null };
 type WorkResponse = { tasks?: WorkTask[] };
 type AppCard = { key: string; title: string; caption: string; accent: string; tab: TabKey; icon: typeof Inbox };
+type CatalogApp = { app_key: string; title: string; description: string; accent: string; destination: string };
 
 const APPS: AppCard[] = [
   { key: 'work', title: 'Black Label Work', caption: 'My tasks', accent: '#6FAFFF', tab: 'work', icon: CheckSquare2 },
@@ -27,6 +28,8 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
   const [workLoading, setWorkLoading] = useState(bootstrap.navigation.work);
   const [workError, setWorkError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [catalogApps, setCatalogApps] = useState<CatalogApp[] | null>(null);
+  const [catalogError, setCatalogError] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!supabase) { setClock('unknown'); setWorkError(true); setWorkLoading(false); return; }
@@ -39,7 +42,14 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
     const workRequest = bootstrap.navigation.work
       ? client.rpc('mobile_employee_work')
       : Promise.resolve({ data: null, error: null });
-    const [clockResult, workResult] = await Promise.allSettled([clockRequest, workRequest]);
+    const appsRequest = client.rpc('connect_my_apps');
+    const [clockResult, workResult, appsResult] = await Promise.allSettled([clockRequest, workRequest, appsRequest]);
+    if (appsResult.status === 'fulfilled' && !appsResult.value.error && Array.isArray(appsResult.value.data)) {
+      setCatalogApps(appsResult.value.data as CatalogApp[]);
+      setCatalogError(false);
+    } else {
+      setCatalogError(true);
+    }
     if (clockResult.status !== 'fulfilled' || clockResult.value.error) {
       setClock('unknown');
     } else {
@@ -61,11 +71,24 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const available = APPS.filter((item) =>
-    item.key === 'time'
-      ? bootstrap.navigation.more
-      : bootstrap.navigation[item.tab]
-  );
+  // The catalog is authoritative when available. A service outage preserves the
+  // previously loaded cards, or uses legacy navigation until the API recovers.
+  // Destination routing remains intentionally limited to implemented Connect tabs.
+  const cardFor = (app: CatalogApp): AppCard | null => {
+    const routes: Record<string, {tab: TabKey; icon: typeof Inbox}> = {
+      work: { tab: 'work', icon: CheckSquare2 },
+      inbox: { tab: 'inbox', icon: Inbox },
+      calendar: { tab: 'calendar', icon: CalendarDays },
+      'time-clock': { tab: 'more', icon: Clock3 },
+      gigs: { tab: 'work', icon: BriefcaseBusiness },
+    };
+    const route = routes[app.destination];
+    if (!route || !bootstrap.navigation[route.tab]) return null;
+    return { key: app.app_key, title: app.title, caption: app.description, accent: /^#[0-9a-f]{6}$/i.test(app.accent) ? app.accent : '#E8B83F', tab: route.tab, icon: route.icon };
+  };
+  const available = catalogApps === null
+    ? APPS.filter(item => bootstrap.navigation[item.tab])
+    : catalogApps.map(cardFor).filter((item): item is AppCard => item !== null);
   const openTasks = tasks.filter((task) => !OPEN.has((task.status || '').toLowerCase()));
   const dateLabel = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', weekday: 'long', timeZone: 'America/Chicago' }).format(new Date());
 
@@ -137,7 +160,7 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
         })}
       </View>
       {available.length === 0 ? <Text style={styles.empty}>No applications are assigned to this account. Contact your Hub administrator.</Text> : null}
-      <Text style={styles.footer}>More Black Label tools will appear here as access is granted in Hub.</Text>
+      <Text style={styles.footer}>{catalogError ? 'Application permissions could not be refreshed. Showing previously available tools.' : 'Application access is managed by Black Label Hub.'}</Text>
     </ScrollView>
   );
 }
