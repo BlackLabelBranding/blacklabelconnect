@@ -182,7 +182,6 @@ function SignInScreen({ initialError }: { initialError?: string }) {
           <View style={styles.loginCard}>
             <LoginBranding />
             <Text style={styles.loginHeading}>Sign In</Text>
-            <Text style={styles.loginDetail}>Use the same Black Label login you use for Hub and My Black Label.</Text>
             <TextInput
               autoCapitalize="none"
               autoComplete="email"
@@ -266,8 +265,7 @@ const styles = StyleSheet.create({
   loginFill: { flex: 1 },
   loginScroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 24 },
   loginCard: { width: '100%', maxWidth: 440, alignSelf: 'center', paddingHorizontal: 8, paddingVertical: 20 },
-  loginHeading: { color: '#FFFFFF', fontSize: 31, fontWeight: '900', textAlign: 'center', marginTop: 4 },
-  loginDetail: { color: '#CDD0D7', fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 8, marginBottom: 22 },
+  loginHeading: { color: '#FFFFFF', fontSize: 31, fontWeight: '900', textAlign: 'center', marginTop: 4, marginBottom: 24 },
   loginInput: { color: '#FFFFFF', backgroundColor: 'rgba(11,13,18,0.92)', borderWidth: 1.5, borderColor: '#C99A3E', borderRadius: 17, minHeight: 57, fontSize: 16, paddingHorizontal: 18, marginBottom: 12 },
   loginButton: { backgroundColor: '#F4C343', borderRadius: 17, minHeight: 58, alignItems: 'center', justifyContent: 'center', marginTop: 10, borderWidth: 1, borderColor: '#FFE28C' },
   loginButtonText: { color: '#08090C', fontSize: 19, fontWeight: '900' },

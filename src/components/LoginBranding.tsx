@@ -58,11 +58,13 @@ export function LoginBranding() {
     <View style={styles.brandWrap}>
       <View style={styles.divisions}>
         <View style={styles.division}>
-          <Image source={brandingLogo} resizeMode="contain" style={styles.brandingImage} accessibilityLabel="Black Label Executive Branding" />
+          <View style={styles.logoViewport}>
+            <Image source={brandingLogo} resizeMode="contain" style={styles.brandingImage} accessibilityLabel="Black Label Executive Branding" />
+          </View>
         </View>
         <View style={styles.divider} />
         <View style={styles.division}>
-          <View style={styles.entertainmentCrop}>
+          <View style={styles.logoViewport}>
             <Image source={entertainmentLogo} resizeMode="contain" style={styles.entertainmentImage} accessibilityLabel="Black Label Entertainment" />
           </View>
         </View>
@@ -80,13 +82,14 @@ export function LoginBranding() {
 const styles = StyleSheet.create({
   brandWrap: { alignItems: 'center', marginBottom: 20 },
   divisions: { flexDirection: 'row', alignItems: 'center', width: '100%', justifyContent: 'center', marginBottom: 21 },
-  division: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', height: 65 },
-  brandingImage: { width: '100%', height: 65 },
-  divider: { height: 42, width: 1, backgroundColor: '#C18A2A', marginHorizontal: 9 },
-  entertainmentCrop: { width: '100%', height: 65, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  // Original entertainment artwork is a square with large black margins.
-  // Enlarge inside a clipped viewport to show the central gold wordmark legibly.
-  entertainmentImage: { width: 270, height: 270, maxWidth: undefined },
+  division: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', height: 86 },
+  // Both original source files are square with generous black space around the actual logo.
+  // Center a 160px square within an 86px-high viewport: the complete wordmarks fit
+  // at iPhone widths without cutting off their left/right edges or second lines.
+  logoViewport: { width: '100%', height: 86, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  brandingImage: { width: 160, height: 160 },
+  divider: { height: 48, width: 1, backgroundColor: '#C18A2A', marginHorizontal: 9 },
+  entertainmentImage: { width: 160, height: 160 },
   emblem: { width: 105, height: 105, alignItems: 'center', justifyContent: 'center', borderRadius: 23, shadowColor: '#E7AB3B', shadowOpacity: .5, shadowRadius: 20, marginBottom: 12, elevation: 8 },
   connectIcon: { width: 96, height: 96, borderRadius: 23 },
   blackLabel: { fontSize: 12, color: '#DDDDE3', fontWeight: '800', letterSpacing: 1.7 },
