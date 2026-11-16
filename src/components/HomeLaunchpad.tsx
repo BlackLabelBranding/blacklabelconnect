@@ -71,9 +71,9 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  // The catalog is authoritative when available. A service outage preserves the
-  // previously loaded cards, or uses legacy navigation until the API recovers.
-  // Destination routing remains intentionally limited to implemented Connect tabs.
+  // The catalog is authoritative. On an API failure retain only the last
+  // successfully authorized catalog; never fall back to unrestricted cards.
+  // Destinations are limited to implemented Connect tabs.
   const cardFor = (app: CatalogApp): AppCard | null => {
     const routes: Record<string, {tab: TabKey; icon: typeof Inbox}> = {
       work: { tab: 'work', icon: CheckSquare2 },
@@ -86,9 +86,8 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
     if (!route || !bootstrap.navigation[route.tab]) return null;
     return { key: app.app_key, title: app.title, caption: app.description, accent: /^#[0-9a-f]{6}$/i.test(app.accent) ? app.accent : '#E8B83F', tab: route.tab, icon: route.icon };
   };
-  const available = catalogApps === null
-    ? APPS.filter(item => bootstrap.navigation[item.tab])
-    : catalogApps.map(cardFor).filter((item): item is AppCard => item !== null);
+  const available = (catalogApps || []).map(cardFor).filter((item): item is AppCard => item !== null);
+  const canViewWork = available.some(item => item.key === 'work');
   const openTasks = tasks.filter((task) => !OPEN.has((task.status || '').toLowerCase()));
   const dateLabel = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', weekday: 'long', timeZone: 'America/Chicago' }).format(new Date());
 
@@ -116,7 +115,7 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
           </View>
           <Text style={styles.statusSmall}>Read-only status</Text>
         </View>
-        {bootstrap.navigation.work ? (
+        {canViewWork ? (
           <Pressable style={styles.statusCard} accessibilityRole="button" onPress={() => onNavigate('work')}>
             <View style={styles.statusTitle}><CheckSquare2 size={17} color="#6FAFFF"/><Text style={styles.statusCaption}>ASSIGNED TASKS</Text></View>
             {workLoading ? <ActivityIndicator size="small" color="#6FAFFF" style={styles.loader} /> :
@@ -126,7 +125,7 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
         ) : null}
       </View>
 
-      {bootstrap.navigation.work && openTasks.length > 0 && !workError ? (
+      {canViewWork && openTasks.length > 0 && !workError ? (
         <Pressable style={styles.nextTask} onPress={() => onNavigate('work')} accessibilityRole="button">
           <View style={styles.nextTaskCopy}>
             <Text style={styles.statusCaption}>NEXT UP · BLACK LABEL WORK</Text>
@@ -159,8 +158,8 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
           );
         })}
       </View>
-      {available.length === 0 ? <Text style={styles.empty}>No applications are assigned to this account. Contact your Hub administrator.</Text> : null}
-      <Text style={styles.footer}>{catalogError ? 'Application permissions could not be refreshed. Showing previously available tools.' : 'Application access is managed by Black Label Hub.'}</Text>
+      {available.length === 0 ? <Text style={styles.empty}>{catalogApps === null ? 'Loading your applications…' : 'No applications are assigned to this account. Contact your Hub administrator.'}</Text> : null}
+      <Text style={styles.footer}>{catalogError ? 'Application permissions could not be refreshed. Showing last verified permissions.' : 'Application access is managed by Black Label Hub.'}</Text>
     </ScrollView>
   );
 }
