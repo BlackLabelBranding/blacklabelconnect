@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Linking,
+  Modal,
   RefreshControl,
   Pressable,
   ScrollView,
@@ -14,6 +16,7 @@ import {
   ArrowLeft,
   Ellipsis,
   SquarePen,
+  Phone,
   Search,
   Inbox as InboxIcon,
   MessageSquare,
@@ -43,6 +46,7 @@ import { ManagerBroadcastExperience } from './ManagerBroadcastExperience';
 import { TeamChatExperience, rpc, type Peer, type Group, type Thread } from './TeamChatExperience';
 import { supabase } from './lib/supabase';
 
+type CrmContact = { id: number; full_name: string | null; company_name: string | null; email: string | null; phone: string | null; avatar_url: string | null };
 type ChatRow = { key: string; name: string; preview: string; at: string | null; unread: number | null; kind: 'direct' | 'group' | 'external'; photo?: string | null; peer?: Peer; group?: Group; external?: EmployeeInboxConversation };
 function Avatar({ row }: { row: ChatRow }) {
   const [failed, setFailed] = useState(false);
@@ -254,6 +258,47 @@ export function InboxExperience() {
   const [filter,setFilter]=useState<'All'|'Internal'|'External'|'Unread'>('All');
   const [search,setSearch]=useState('');
   const [compose,setCompose]=useState(false);
+  const [composeMode,setComposeMode]=useState<'Internal'|'External'>('Internal');
+  const [crm,setCrm]=useState<CrmContact[]>([]);
+  const [crmBusy,setCrmBusy]=useState(false);
+  const [crmError,setCrmError]=useState('');
+  const [crmPage,setCrmPage]=useState(0);
+  const [crmMore,setCrmMore]=useState(false);
+  const [contact,setContact]=useState<CrmContact|null>(null);
+  const [callContact,setCallContact]=useState<CrmContact|null>(null);
+  const [retry,setRetry]=useState(0);
+  useEffect(()=>{
+    if(!compose||composeMode!=='External'||!supabase)return;
+    const client=supabase;
+    let active=true;
+    setCrmBusy(true);setCrmError('');
+    if(crmPage===0)setCrm([]);
+    const timer=setTimeout(()=>{void (async()=>{
+      try{
+        const term=search.trim().replace(/[^\p{L}\p{N}\s@.+_-]/gu,' ').trim().slice(0,100);
+        let q=client.from('contacts').select('id,full_name,company_name,email,phone,avatar_url').order('full_name',{ascending:true,nullsFirst:false}).order('id').range(crmPage*50,crmPage*50+49);
+        if(term){const pattern='%'+term+'%';q=q.or(['full_name','company_name','email','phone'].map(field=>field+'.ilike.'+pattern).join(','));}
+        const {data,error}=await q;
+        if(!active)return;
+        if(error)throw error;
+        const result=(data??[]) as CrmContact[];
+        setCrm(previous=>crmPage===0?result:[...previous,...result.filter(c=>!previous.some(p=>p.id===c.id))]);
+        setCrmMore(result.length===50);
+      }catch{if(active){setCrmError('Unable to load CRM contacts. Check your access and try again.');setCrmMore(false);}}
+      finally{if(active)setCrmBusy(false);}
+    })();},250);
+    return()=>{active=false;clearTimeout(timer);};
+  },[compose,composeMode,search,crmPage,retry]);
+  const dial=(provider:'ringcentral'|'phone')=>{
+    if(!callContact?.phone)return;
+    const raw=callContact.phone.trim();
+    const digits=raw.replace(/[^0-9]/g,'');
+    if(!digits)return;
+    const number=raw.startsWith('+')?digits:digits.length===10?'1'+digits:digits;
+    setCallContact(null);
+    void Linking.openURL(provider==='ringcentral'?'rcmobile://call?number='+encodeURIComponent(number):'tel:'+ (raw.startsWith('+')?'+':'')+digits).catch(()=>setCrmError(provider==='ringcentral'?'Unable to open RingCentral. Make sure the app is installed and signed in.':'Unable to open the default calling app.'));
+  };
+  const callMenu=<Modal visible={!!callContact} transparent animationType="fade" onRequestClose={()=>setCallContact(null)}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,0.65)'}}><View style={{backgroundColor:'#222222',padding:24,borderTopLeftRadius:24,borderTopRightRadius:24,gap:16}}><Text style={styles.nativeTitle}>Call using</Text><Text selectable style={styles.chatPreview}>{callContact?.phone}</Text><Pressable style={[styles.filterPill,styles.filterActive]} onPress={()=>dial('ringcentral')}><Text style={[styles.filterLabel,{color:'#090909'}]}>RingCentral · Business</Text></Pressable><Pressable style={styles.filterPill} onPress={()=>dial('phone')}><Text style={styles.filterLabel}>Default phone app</Text></Pressable><Text style={styles.chatPreview}>Press and hold the number to copy it.</Text><Pressable style={styles.filterPill} onPress={()=>setCallContact(null)}><Text style={styles.filterLabel}>Cancel</Text></Pressable></View></View></Modal>;
   const [showTools,setShowTools]=useState(false);
   const [tool,setTool]=useState<'announcements'|'approvals'|'broadcasts'|null>(null);
   const [errors,setErrors]=useState<string[]>([]);
@@ -289,6 +334,16 @@ export function InboxExperience() {
   if(tool==='approvals')return <ManagerBroadcastExperience onBack={()=>setTool(null)}/>;
   if(tool==='announcements')return <AnnouncementExperience onBack={()=>setTool(null)}/>;
   if(tool==='broadcasts')return <BroadcastExperience onBack={()=>setTool(null)}/>;
+  if(contact){
+    const name=contact.full_name||contact.company_name||'CRM contact';
+    const row:ChatRow={key:'crm:'+contact.id,name,preview:contact.company_name??'',at:null,unread:null,kind:'external',photo:contact.avatar_url};
+    return <View style={styles.container}><View style={styles.nativeHeader}><Pressable accessibilityLabel="Back to contacts" style={styles.circleAction} onPress={()=>{setContact(null);setCrmError('');}}><ArrowLeft color={colors.text} size={23}/></Pressable><Avatar row={row}/><Text style={styles.nativeTitle}>{name}</Text>{!!contact.company_name&&<Text style={styles.chatPreview}>{contact.company_name}</Text>}
+    {contact.phone?<Text selectable style={styles.chatName}>{contact.phone}</Text>:<Text style={styles.loadNotice}>No phone number on file.</Text>}
+    {contact.email?<Text selectable style={styles.chatPreview}>{contact.email}</Text>:null}
+    {!!contact.phone&&<Pressable accessibilityLabel="Call contact" style={styles.filterPill} onPress={()=>setCallContact(contact)}><Text style={styles.filterLabel}>Call using…</Text></Pressable>}
+    {crmError?<Text style={styles.loadNotice}>{crmError}</Text>:null}
+    <Text style={styles.loadNotice}>External business SMS sending is not enabled yet.</Text></View>{callMenu}</View>;
+  }
   if(selected?.external)return <ThreadExperience conversation={selected.external} onBack={back}/>;
   if(selected)return <TeamChatExperience key={selected.key} initialPeer={selected.peer} initialGroup={selected.group} onBack={back}/>;
   const rows:ChatRow[]=[
@@ -304,17 +359,19 @@ export function InboxExperience() {
     <View style={styles.nativeHeader}>
       <View style={styles.nativeActions}>
         <Pressable accessibilityLabel={compose?'Back to messages':'Messaging tools'} style={styles.circleAction} onPress={()=>compose?(setCompose(false),setSearch('')):setShowTools(v=>!v)}>{compose?<ArrowLeft color={colors.text} size={23}/>:<Ellipsis color={colors.text} size={24}/>}</Pressable>
-        {!compose&&<Pressable accessibilityLabel="New message" style={styles.composeAction} onPress={()=>{setCompose(true);setSearch('');setShowTools(false);}}><SquarePen color="#090909" size={22}/></Pressable>}
+        {!compose&&<Pressable accessibilityLabel="New message" style={styles.composeAction} onPress={()=>{setCompose(true);setComposeMode('Internal');setCrmPage(0);setSearch('');setShowTools(false);}}><SquarePen color="#090909" size={22}/></Pressable>}
       </View>
       <Text style={styles.nativeTitle}>{compose?'New message':'Messages'}</Text>
-      <View style={styles.nativeSearch}><Search color={colors.muted} size={19}/><TextInput accessibilityLabel={compose?'Search contacts':'Search messages'} value={search} onChangeText={setSearch} autoCapitalize="none" placeholder={compose?'Search contacts':'Search messages'} placeholderTextColor={colors.muted} style={styles.nativeSearchInput}/></View>
+      {compose&&<View style={styles.nativeFilters}>{(['Internal','External'] as const).map(label=><Pressable key={label} accessibilityRole="tab" accessibilityState={{selected:composeMode===label}} style={[styles.filterPill,{flex:1,alignItems:'center'},composeMode===label&&styles.filterActive]} onPress={()=>{setComposeMode(label);setSearch('');setCrmPage(0);setCrmError('');}}><Text style={[styles.filterLabel,composeMode===label&&{color:'#090909'}]}>{label}</Text></Pressable>)}</View>}
+      <View style={styles.nativeSearch}><Search color={colors.muted} size={19}/><TextInput accessibilityLabel={compose?'Search contacts':'Search messages'} value={search} onChangeText={value=>{setSearch(value);setCrmPage(0);}} autoCapitalize="none" placeholder={compose?(composeMode==='External'?'Search CRM contacts':'Search team members'):'Search messages'} placeholderTextColor={colors.muted} style={styles.nativeSearchInput}/></View>
       {!compose&&<View style={styles.nativeFilters}>{(['All','Internal','External','Unread'] as const).map(label=><Pressable key={label} accessibilityRole="tab" accessibilityState={{selected:filter===label}} style={[styles.filterPill,filter===label&&styles.filterActive]} onPress={()=>setFilter(label)}><Text style={[styles.filterLabel,filter===label&&{color:'#090909'}]}>{label}</Text></Pressable>)}</View>}
       {showTools&&!compose&&<View style={styles.menu}>{([['announcements','Announcements'],['approvals','Manager approvals'],['broadcasts','Employee broadcasts']] as const).map(([id,label])=><Pressable key={id} style={styles.menuItem} onPress={()=>{setShowTools(false);setTool(id);}}><Text style={styles.chatName}>{label}</Text></Pressable>)}</View>}
     </View>
     <ScrollView style={{flex:1}} contentContainerStyle={styles.nativeList} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void load(true)} tintColor={colors.amber}/>}>
       {errors.map(e=><Text key={e} style={styles.loadNotice}>{e}</Text>)}
-      {loading?<ActivityIndicator color={colors.amber} style={{marginTop:24}}/>:compose?<>{directory.filter(matches).map(r=><ChatItem key={r.key} row={r} onPress={()=>setSelected(r)}/>)}{!directory.filter(matches).length&&<Text style={styles.loadNotice}>No matching teammates.</Text>}<Text style={styles.loadNotice}>External SMS history is read-only. New messages are internal.</Text></>:<>{visible.map(r=><ChatItem key={r.key} row={r} onPress={()=>setSelected(r)}/>)}{!visible.length&&<Text style={styles.loadNotice}>{query?'No matching conversations.':'No conversations here yet.'}</Text>}{filter==='Unread'&&<Text style={styles.loadNotice}>Unread counts are currently available for external SMS only.</Text>}</>}
+      {loading?<ActivityIndicator color={colors.amber} style={{marginTop:24}}/>:compose&&composeMode==='External'?<><Text style={styles.loadNotice}>CRM CONTACTS</Text>{crm.map(c=>{const row:ChatRow={key:'crm:'+c.id,name:c.full_name||c.company_name||'CRM contact',preview:[c.company_name,c.phone,c.email].filter(Boolean).join(' · '),at:null,unread:null,kind:'external',photo:c.avatar_url};return <View key={row.key} style={{flexDirection:'row',alignItems:'center'}}><View style={{flex:1,minWidth:0}}><ChatItem row={row} onPress={()=>setContact(c)}/></View>{c.phone?<Pressable accessibilityLabel={'Call '+row.name} style={styles.circleAction} onPress={()=>setCallContact(c)}><Phone color={colors.amber} size={19}/></Pressable>:null}</View>;})}{crmBusy?<ActivityIndicator color={colors.amber}/>:null}{crmError?<><Text style={styles.loadNotice}>{crmError}</Text><Pressable onPress={()=>{setCrmPage(0);setRetry(r=>r+1);}}><Text style={styles.filterLabel}>Try again</Text></Pressable></>:null}{!crmBusy&&!crmError&&!crm.length?<Text style={styles.loadNotice}>No accessible CRM contacts match your search.</Text>:null}{crmMore&&!crmBusy?<Pressable style={styles.filterPill} onPress={()=>setCrmPage(p=>p+1)}><Text style={styles.filterLabel}>Load more contacts</Text></Pressable>:null}</>:compose?<>{directory.filter(matches).map(r=><ChatItem key={r.key} row={r} onPress={()=>setSelected(r)}/>)}{!directory.filter(matches).length&&<Text style={styles.loadNotice}>No matching teammates.</Text>}<Text style={styles.loadNotice}>Select External to search CRM contacts.</Text></>:<>{visible.map(r=><ChatItem key={r.key} row={r} onPress={()=>setSelected(r)}/>)}{!visible.length&&<Text style={styles.loadNotice}>{query?'No matching conversations.':'No conversations here yet.'}</Text>}{filter==='Unread'&&<Text style={styles.loadNotice}>Unread counts are currently available for external SMS only.</Text>}</>}
     </ScrollView>
+    {callMenu}
   </View>;
 }
 
