@@ -8,11 +8,12 @@ export function useDevicePushRegistration(userId: string) {
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (Platform.OS === 'web' || !supabase) { setStatus('unsupported'); return; }
+    const client = supabase;
     let active = true;
     let token: string | undefined;
     const register = async () => {
       try {
-        const { data: preferences, error: prefError } = await supabase.from('notification_preferences').select('push_enabled').eq('user_id',userId).maybeSingle();
+        const { data: preferences, error: prefError } = await client.from('notification_preferences').select('push_enabled').eq('user_id',userId).maybeSingle();
         if (prefError) throw prefError;
         if (preferences?.push_enabled === false) { if(active)setStatus('denied'); return; }
         if (Platform.OS === 'android') {
@@ -30,7 +31,7 @@ export function useDevicePushRegistration(userId: string) {
         token = expoToken.data;
         // Direct table writes are intentionally denied by RLS/grants. Use the
         // authenticated RPC, which checks active employee status and token ownership.
-        const { error: saveError } = await supabase.rpc('connect_register_push_device', {
+        const { error: saveError } = await client.rpc('connect_register_push_device', {
           p_platform: Platform.OS,
           p_token: token,
         });
