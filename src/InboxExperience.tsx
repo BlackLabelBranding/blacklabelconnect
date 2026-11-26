@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  ActionSheetIOS,
+  Platform,
   Image,
   Linking,
   Modal,
@@ -289,16 +291,24 @@ export function InboxExperience() {
     })();},250);
     return()=>{active=false;clearTimeout(timer);};
   },[compose,composeMode,search,crmPage,retry]);
-  const dial=(provider:'ringcentral'|'phone')=>{
-    if(!callContact?.phone)return;
-    const raw=callContact.phone.trim();
+  const dial=(target:CrmContact,provider:'ringcentral'|'phone')=>{
+    const raw=target.phone?.trim()??'';
     const digits=raw.replace(/[^0-9]/g,'');
     if(!digits)return;
     const number=raw.startsWith('+')?digits:digits.length===10?'1'+digits:digits;
     setCallContact(null);
-    void Linking.openURL(provider==='ringcentral'?'rcmobile://call?number='+encodeURIComponent(number):'tel:'+ (raw.startsWith('+')?'+':'')+digits).catch(()=>setCrmError(provider==='ringcentral'?'Unable to open RingCentral. Make sure the app is installed and signed in.':'Unable to open the default calling app.'));
+    void Linking.openURL(provider==='ringcentral'?'rcmobile://call?number='+encodeURIComponent(number):'tel:'+(raw.startsWith('+')?'+':'')+digits).catch(()=>setCrmError(provider==='ringcentral'?'Unable to open RingCentral. Make sure the app is installed and signed in.':'Unable to open the default calling app.'));
   };
-  const callMenu=<Modal visible={!!callContact} transparent animationType="fade" onRequestClose={()=>setCallContact(null)}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,0.65)'}}><View style={{backgroundColor:'#222222',padding:24,borderTopLeftRadius:24,borderTopRightRadius:24,gap:16}}><Text style={styles.nativeTitle}>Call using</Text><Text selectable style={styles.chatPreview}>{callContact?.phone}</Text><Pressable style={[styles.filterPill,styles.filterActive]} onPress={()=>dial('ringcentral')}><Text style={[styles.filterLabel,{color:'#090909'}]}>RingCentral · Business</Text></Pressable><Pressable style={styles.filterPill} onPress={()=>dial('phone')}><Text style={styles.filterLabel}>Default phone app</Text></Pressable><Text style={styles.chatPreview}>Press and hold the number to copy it.</Text><Pressable style={styles.filterPill} onPress={()=>setCallContact(null)}><Text style={styles.filterLabel}>Cancel</Text></Pressable></View></View></Modal>;
+  const openCallMenu=(target:CrmContact)=>{
+    if(!target.phone)return;
+    if(Platform.OS==='ios'){
+      ActionSheetIOS.showActionSheetWithOptions({title:'Call using',message:target.phone,options:['Default phone app','RingCentral','Cancel'],cancelButtonIndex:2},index=>{
+        if(index===0)dial(target,'phone');
+        if(index===1)dial(target,'ringcentral');
+      });
+    }else setCallContact(target);
+  };
+  const callMenu=<Modal visible={!!callContact} transparent animationType="fade" onRequestClose={()=>setCallContact(null)}><View style={{flex:1,justifyContent:'center',alignItems:'center',backgroundColor:'rgba(0,0,0,0.25)'}}><Pressable accessibilityLabel="Dismiss calling options" onPress={()=>setCallContact(null)} style={StyleSheet.absoluteFill}/><View style={{backgroundColor:'#373737',borderRadius:14,width:260,maxWidth:'90%',overflow:'hidden'}}><Text selectable style={{color:'#d0d0d0',fontSize:13,padding:14,textAlign:'center'}}>{callContact?.phone}</Text>{(['phone','ringcentral'] as const).map(provider=><Pressable key={provider} accessibilityRole="button" onPress={()=>{if(callContact)dial(callContact,provider);}} style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',padding:15,borderTopWidth:StyleSheet.hairlineWidth,borderColor:'#555'}}><Text style={{color:'#fff',fontSize:16}}>{provider==='phone'?'Default phone app':'RingCentral'}</Text><Phone size={18} color="#fff"/></Pressable>)}<Pressable onPress={()=>setCallContact(null)} style={{padding:15,borderTopWidth:StyleSheet.hairlineWidth,borderColor:'#555'}}><Text style={{color:'#fff',fontSize:16,textAlign:'center'}}>Cancel</Text></Pressable></View></View></Modal>;
   const [showTools,setShowTools]=useState(false);
   const [tool,setTool]=useState<'announcements'|'approvals'|'broadcasts'|null>(null);
   const [errors,setErrors]=useState<string[]>([]);
@@ -340,7 +350,7 @@ export function InboxExperience() {
     return <View style={styles.container}><View style={styles.nativeHeader}><Pressable accessibilityLabel="Back to contacts" style={styles.circleAction} onPress={()=>{setContact(null);setCrmError('');}}><ArrowLeft color={colors.text} size={23}/></Pressable><Avatar row={row}/><Text style={styles.nativeTitle}>{name}</Text>{!!contact.company_name&&<Text style={styles.chatPreview}>{contact.company_name}</Text>}
     {contact.phone?<Text selectable style={styles.chatName}>{contact.phone}</Text>:<Text style={styles.loadNotice}>No phone number on file.</Text>}
     {contact.email?<Text selectable style={styles.chatPreview}>{contact.email}</Text>:null}
-    {!!contact.phone&&<Pressable accessibilityLabel="Call contact" style={styles.filterPill} onPress={()=>setCallContact(contact)}><Text style={styles.filterLabel}>Call using…</Text></Pressable>}
+    {!!contact.phone&&<Pressable accessibilityLabel="Call contact" style={styles.filterPill} onPress={()=>openCallMenu(contact)}><Text style={styles.filterLabel}>Call using…</Text></Pressable>}
     {crmError?<Text style={styles.loadNotice}>{crmError}</Text>:null}
     <Text style={styles.loadNotice}>External business SMS sending is not enabled yet.</Text></View>{callMenu}</View>;
   }
@@ -369,7 +379,7 @@ export function InboxExperience() {
     </View>
     <ScrollView style={{flex:1}} contentContainerStyle={styles.nativeList} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void load(true)} tintColor={colors.amber}/>}>
       {errors.map(e=><Text key={e} style={styles.loadNotice}>{e}</Text>)}
-      {loading?<ActivityIndicator color={colors.amber} style={{marginTop:24}}/>:compose&&composeMode==='External'?<><Text style={styles.loadNotice}>CRM CONTACTS</Text>{crm.map(c=>{const row:ChatRow={key:'crm:'+c.id,name:c.full_name||c.company_name||'CRM contact',preview:[c.company_name,c.phone,c.email].filter(Boolean).join(' · '),at:null,unread:null,kind:'external',photo:c.avatar_url};return <View key={row.key} style={{flexDirection:'row',alignItems:'center'}}><View style={{flex:1,minWidth:0}}><ChatItem row={row} onPress={()=>setContact(c)}/></View>{c.phone?<Pressable accessibilityLabel={'Call '+row.name} style={styles.circleAction} onPress={()=>setCallContact(c)}><Phone color={colors.amber} size={19}/></Pressable>:null}</View>;})}{crmBusy?<ActivityIndicator color={colors.amber}/>:null}{crmError?<><Text style={styles.loadNotice}>{crmError}</Text><Pressable onPress={()=>{setCrmPage(0);setRetry(r=>r+1);}}><Text style={styles.filterLabel}>Try again</Text></Pressable></>:null}{!crmBusy&&!crmError&&!crm.length?<Text style={styles.loadNotice}>No accessible CRM contacts match your search.</Text>:null}{crmMore&&!crmBusy?<Pressable style={styles.filterPill} onPress={()=>setCrmPage(p=>p+1)}><Text style={styles.filterLabel}>Load more contacts</Text></Pressable>:null}</>:compose?<>{directory.filter(matches).map(r=><ChatItem key={r.key} row={r} onPress={()=>setSelected(r)}/>)}{!directory.filter(matches).length&&<Text style={styles.loadNotice}>No matching teammates.</Text>}<Text style={styles.loadNotice}>Select External to search CRM contacts.</Text></>:<>{visible.map(r=><ChatItem key={r.key} row={r} onPress={()=>setSelected(r)}/>)}{!visible.length&&<Text style={styles.loadNotice}>{query?'No matching conversations.':'No conversations here yet.'}</Text>}{filter==='Unread'&&<Text style={styles.loadNotice}>Unread counts are currently available for external SMS only.</Text>}</>}
+      {loading?<ActivityIndicator color={colors.amber} style={{marginTop:24}}/>:compose&&composeMode==='External'?<><Text style={styles.loadNotice}>CRM CONTACTS</Text>{crm.map(c=>{const row:ChatRow={key:'crm:'+c.id,name:c.full_name||c.company_name||'CRM contact',preview:[c.company_name,c.phone,c.email].filter(Boolean).join(' · '),at:null,unread:null,kind:'external',photo:c.avatar_url};return <View key={row.key} style={{flexDirection:'row',alignItems:'center'}}><View style={{flex:1,minWidth:0}}><ChatItem row={row} onPress={()=>setContact(c)}/></View>{c.phone?<Pressable accessibilityLabel={'Call '+row.name} style={styles.circleAction} onPress={()=>openCallMenu(c)}><Phone color={colors.amber} size={19}/></Pressable>:null}</View>;})}{crmBusy?<ActivityIndicator color={colors.amber}/>:null}{crmError?<><Text style={styles.loadNotice}>{crmError}</Text><Pressable onPress={()=>{setCrmPage(0);setRetry(r=>r+1);}}><Text style={styles.filterLabel}>Try again</Text></Pressable></>:null}{!crmBusy&&!crmError&&!crm.length?<Text style={styles.loadNotice}>No accessible CRM contacts match your search.</Text>:null}{crmMore&&!crmBusy?<Pressable style={styles.filterPill} onPress={()=>setCrmPage(p=>p+1)}><Text style={styles.filterLabel}>Load more contacts</Text></Pressable>:null}</>:compose?<>{directory.filter(matches).map(r=><ChatItem key={r.key} row={r} onPress={()=>setSelected(r)}/>)}{!directory.filter(matches).length&&<Text style={styles.loadNotice}>No matching teammates.</Text>}<Text style={styles.loadNotice}>Select External to search CRM contacts.</Text></>:<>{visible.map(r=><ChatItem key={r.key} row={r} onPress={()=>setSelected(r)}/>)}{!visible.length&&<Text style={styles.loadNotice}>{query?'No matching conversations.':'No conversations here yet.'}</Text>}{filter==='Unread'&&<Text style={styles.loadNotice}>Unread counts are currently available for external SMS only.</Text>}</>}
     </ScrollView>
     {callMenu}
   </View>;
