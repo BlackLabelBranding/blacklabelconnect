@@ -7,7 +7,7 @@ import {
   formatInboxTimestamp,
   isOutboundMessage,
   titleForConversation,
-} from './inbox';
+} from './inbox.ts';
 
 const conversationId = 'e88a209b-b2f7-4d6d-9374-118ac593ce9e';
 
