@@ -53,7 +53,7 @@ export function AppShell({
   return (
     <SafeAreaView style={styles.canvas}>
       <View style={[styles.app, constrained && styles.appConstrained]}>
-        <AppHeader bootstrap={bootstrap} photoUrl={employeePhoto} onOpenAccount={() => setActiveTab('more')} />
+        {activeTab !== 'inbox' ? <AppHeader bootstrap={bootstrap} photoUrl={employeePhoto} onOpenAccount={() => setActiveTab('more')} /> : null}
         <View style={styles.content}>
           {activeTab === 'home' ? <HomeLaunchpad bootstrap={bootstrap} onNavigate={setActiveTab} /> : null}
           {activeTab === 'inbox' ? <InboxScreen /> : null}
