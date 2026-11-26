@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { adaptEmployeeCalendar, getEmployeeCalendarWindow, toneForCalendarEvent } from './calendar';
+import { adaptEmployeeCalendar, getEmployeeCalendarWindow, toneForCalendarEvent } from './calendar.ts';
 
 const response = {
   contract: {
@@ -61,7 +61,7 @@ test('accepts a valid empty calendar', () => {
 
 test('rejects an incompatible contract version', () => {
   assert.throws(
-    () => adaptEmployeeCalendar({ ...response, contract: { ...response.contract, version: 2 } }),
+    () => adaptEmployeeCalendar({ ...response, contract: { ...response.contract, version: 3 } }),
     /not supported/,
   );
 });
