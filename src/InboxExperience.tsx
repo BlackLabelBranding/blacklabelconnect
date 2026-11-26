@@ -246,7 +246,7 @@ function StatePanel({
   );
 }
 
-export function InboxExperience() {
+export function InboxExperience({initialDirectory=false}:{initialDirectory?:boolean}={}) {
   const [inbox,setInbox]=useState<EmployeeInbox|null>(null);
   const [peers,setPeers]=useState<Peer[]>([]);
   const [threads,setThreads]=useState<Thread[]>([]);
@@ -256,7 +256,7 @@ export function InboxExperience() {
   const [selected,setSelected]=useState<ChatRow|null>(null);
   const [filter,setFilter]=useState<'All'|'Internal'|'External'|'Unread'>('All');
   const [search,setSearch]=useState('');
-  const [compose,setCompose]=useState(false);
+  const [compose,setCompose]=useState(initialDirectory);
   const [composeMode,setComposeMode]=useState<'Internal'|'External'>('Internal');
   const [crm,setCrm]=useState<CrmContact[]>([]);
   const [crmBusy,setCrmBusy]=useState(false);

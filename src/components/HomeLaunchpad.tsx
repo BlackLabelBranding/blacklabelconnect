@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { CalendarDays, CheckSquare2, Clock3, Inbox, RefreshCw, BriefcaseBusiness, ChevronRight } from 'lucide-react-native';
+import { CalendarDays, CheckSquare2, Clock3, Inbox, RefreshCw, ContactRound, UserRound, ChevronRight, Package, ArrowLeft } from 'lucide-react-native';
 import type { MobileBootstrap, TabKey } from '../contracts/bootstrap';
 import { supabase } from '../lib/supabase';
 import { colors } from '../theme';
@@ -8,13 +8,14 @@ import { colors } from '../theme';
 type ClockStatus = 'loading' | 'in' | 'out' | 'unknown';
 type WorkTask = { id: number; status: string | null; title: string; due_date: string | null };
 type WorkResponse = { tasks?: WorkTask[] };
-type AppCard = { key: string; title: string; caption: string; accent: string; tab: TabKey; icon: typeof Inbox };
+type AppCard = { key: string; title: string; caption: string; accent: string; tab: TabKey; icon: typeof Inbox; section?: 'clock' | 'directory'; development?: boolean };
 type CatalogApp = { app_key: string; title: string; description: string; accent: string; destination: string };
 
 const OPEN = new Set(['complete', 'completed', 'done', 'cancelled', 'canceled']);
 const firstName = (name: string) => name.split(/\s+/)[0] || 'there';
 
-export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBootstrap; onNavigate: (tab: TabKey) => void }) {
+export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBootstrap; onNavigate: (tab: TabKey, section?: 'clock' | 'directory') => void }) {
+  const [showInventory, setShowInventory] = useState(false);
   const [clock, setClock] = useState<ClockStatus>('loading');
   const [tasks, setTasks] = useState<WorkTask[]>([]);
   const [workLoading, setWorkLoading] = useState(bootstrap.navigation.work);
@@ -67,22 +68,35 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
   // successfully authorized catalog; never fall back to unrestricted cards.
   // Destinations are limited to implemented Connect tabs.
   const cardFor = (app: CatalogApp): AppCard | null => {
-    const routes: Record<string, {tab: TabKey; icon: typeof Inbox}> = {
+    const routes: Record<string, {tab: TabKey; icon: typeof Inbox; section?: 'clock' | 'directory'}> = {
       work: { tab: 'work', icon: CheckSquare2 },
       inbox: { tab: 'inbox', icon: Inbox },
       calendar: { tab: 'calendar', icon: CalendarDays },
-      'time-clock': { tab: 'more', icon: Clock3 },
-      gigs: { tab: 'work', icon: BriefcaseBusiness },
+      'time-clock': { tab: 'more', icon: Clock3, section: 'clock' },
+      directory: { tab: 'inbox', icon: ContactRound, section: 'directory' },
     };
     const route = routes[app.destination];
     if (!route || !bootstrap.navigation[route.tab]) return null;
-    return { key: app.app_key, title: app.title, caption: app.description, accent: /^#[0-9a-f]{6}$/i.test(app.accent) ? app.accent : '#E8B83F', tab: route.tab, icon: route.icon };
+    return { key: app.app_key, title: app.title, caption: ({work:'Tasks & projects',inbox:'Communications',calendar:'Your schedule','time-clock':'Punches & shifts',directory:'Team & clients'} as Record<string,string>)[app.destination] ?? app.description, accent: /^#[0-9a-f]{6}$/i.test(app.accent) ? app.accent : '#E8B83F', tab: route.tab, icon: route.icon, section: route.section };
   };
   const available = (catalogApps || []).map(cardFor).filter((item): item is AppCard => item !== null);
+  if (bootstrap.navigation.more) available.push({key:'my-account',title:'My Account',caption:'Employee profile',accent:'#A99CFF',tab:'more',icon:UserRound});
+  if (bootstrap.navigation.home && !available.some(item=>item.key==='inventory')) available.push({key:'inventory',title:'Inventory',caption:'In development',accent:'#40D6B8',tab:'home',icon:Package,development:true});
   const canViewWork = available.some(item => item.key === 'work');
   const openTasks = tasks.filter((task) => !OPEN.has((task.status || '').toLowerCase()));
   const dateLabel = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', weekday: 'long', timeZone: 'America/Chicago' }).format(new Date());
 
+  if (showInventory) return (
+    <View style={styles.page}>
+      <Pressable accessibilityRole="button" onPress={()=>setShowInventory(false)} style={{flexDirection:'row',alignItems:'center',gap:10,marginBottom:30}}><ArrowLeft color={colors.text} size={22}/><Text style={styles.appTitle}>Back to Home</Text></Pressable>
+      <View style={{alignItems:'center',padding:24,gap:16}}>
+        <View style={[styles.appIcon,{backgroundColor:'#40D6B81A'}]}><Package color="#40D6B8" size={28}/></View>
+        <Text style={styles.heading}>Black Label Inventory</Text>
+        <Text style={{color:'#40D6B8',fontWeight:'800',fontSize:13}}>IN DEVELOPMENT</Text>
+        <Text style={{color:colors.muted,textAlign:'center',lineHeight:21}}>Our merchandise inventory system is being developed. Product and stock management will be available here when it is ready.</Text>
+      </View>
+    </View>
+  );
   return (
     <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
@@ -140,12 +154,12 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
               key={item.key}
               accessibilityRole="button"
               accessibilityLabel={'Open ' + item.title}
-              onPress={() => onNavigate(item.tab)}
+              onPress={() => item.development ? setShowInventory(true) : onNavigate(item.tab,item.section)}
               style={({ pressed }) => [styles.appCard, { borderColor: item.accent + '44' }, pressed && styles.pressed]}
             >
               <View style={[styles.appIcon, { backgroundColor: item.accent + '1A' }]}><Icon color={item.accent} size={27} /></View>
               <Text style={styles.appTitle} numberOfLines={2}>{item.title}</Text>
-              <Text style={styles.appCaption} numberOfLines={1}>{item.caption}</Text>
+              <Text style={styles.appCaption} numberOfLines={2}>{item.caption}</Text>
             </Pressable>
           );
         })}
@@ -181,7 +195,7 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.text, fontSize: 23, fontWeight: '900' },
   sectionNote: { color: colors.muted, fontSize: 12, marginTop: 5 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  appCard: { width: '31%', flexGrow: 1, maxWidth: '48%', minWidth: 98, backgroundColor: '#11151B', borderWidth: 1, borderRadius: 16, paddingHorizontal: 9, paddingVertical: 16, minHeight: 137, alignItems: 'center', justifyContent: 'center' },
+  appCard: { width: '31%', flexGrow: 0, flexShrink: 0, minWidth: 0, backgroundColor: '#11151B', borderWidth: 1, borderRadius: 16, paddingHorizontal: 9, paddingVertical: 16, height: 137, alignItems: 'center', justifyContent: 'center' },
   appIcon: { width: 48, height: 48, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   appTitle: { color: '#F5F7FA', fontSize: 12, fontWeight: '800', textAlign: 'center' },
   appCaption: { color: '#909BAA', fontSize: 10, textAlign: 'center', marginTop: 5 },
