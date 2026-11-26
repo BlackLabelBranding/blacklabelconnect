@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { CalendarDays, CheckSquare2, Clock3, Inbox, RefreshCw, ContactRound, UserRound, ChevronRight, Package, ArrowLeft } from 'lucide-react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { CalendarDays, CheckSquare2, Clock3, Inbox, RefreshCw, ContactRound, UserRound, ChevronRight, Package, ArrowLeft, CreditCard } from 'lucide-react-native';
 import type { MobileBootstrap, TabKey } from '../contracts/bootstrap';
 import { supabase } from '../lib/supabase';
 import { colors } from '../theme';
@@ -8,13 +8,15 @@ import { colors } from '../theme';
 type ClockStatus = 'loading' | 'in' | 'out' | 'unknown';
 type WorkTask = { id: number; status: string | null; title: string; due_date: string | null };
 type WorkResponse = { tasks?: WorkTask[] };
-type AppCard = { key: string; title: string; caption: string; accent: string; tab: TabKey; icon: typeof Inbox; section?: 'clock' | 'directory'; development?: boolean };
+type AppCard = { key: string; title: string; caption: string; accent: string; tab: TabKey; icon: typeof Inbox; section?: 'clock' | 'directory'; development?: boolean; externalUrl?: string };
 type CatalogApp = { app_key: string; title: string; description: string; accent: string; destination: string };
 
 const OPEN = new Set(['complete', 'completed', 'done', 'cancelled', 'canceled']);
 const firstName = (name: string) => name.split(/\s+/)[0] || 'there';
 
 export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBootstrap; onNavigate: (tab: TabKey, section?: 'clock' | 'directory') => void }) {
+  const [posError,setPosError]=useState(false);
+  const [canUsePOS,setCanUsePOS]=useState(false);
   const [showInventory, setShowInventory] = useState(false);
   const [clock, setClock] = useState<ClockStatus>('loading');
   const [tasks, setTasks] = useState<WorkTask[]>([]);
@@ -36,7 +38,8 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
       ? client.rpc('mobile_employee_work')
       : Promise.resolve({ data: null, error: null });
     const appsRequest = client.rpc('connect_my_apps');
-    const [clockResult, workResult, appsResult] = await Promise.allSettled([clockRequest, workRequest, appsRequest]);
+    const [clockResult, workResult, appsResult, posResult] = await Promise.allSettled([clockRequest, workRequest, appsRequest, client.rpc('current_user_has_capability',{p_capability:'financial'})]);
+    setCanUsePOS(posResult.status==='fulfilled'&&!posResult.value.error&&posResult.value.data===true);
     if (appsResult.status === 'fulfilled' && !appsResult.value.error && Array.isArray(appsResult.value.data)) {
       setCatalogApps(appsResult.value.data as CatalogApp[]);
       setCatalogError(false);
@@ -75,6 +78,7 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
       'time-clock': { tab: 'more', icon: Clock3, section: 'clock' },
       directory: { tab: 'inbox', icon: ContactRound, section: 'directory' },
     };
+    if(app.destination==='pos') return canUsePOS?{key:app.app_key,title:'POS',caption:'Point of sale',accent:'#E3B54F',tab:'home',icon:CreditCard,externalUrl:'https://blacklabelhub.com/financial/pos'}:null;
     const route = routes[app.destination];
     if (!route || !bootstrap.navigation[route.tab]) return null;
     return { key: app.app_key, title: app.title, caption: ({work:'Tasks & projects',inbox:'Communications',calendar:'Your schedule','time-clock':'Punches & shifts',directory:'Team & clients'} as Record<string,string>)[app.destination] ?? app.description, accent: /^#[0-9a-f]{6}$/i.test(app.accent) ? app.accent : '#E8B83F', tab: route.tab, icon: route.icon, section: route.section };
@@ -154,7 +158,7 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
               key={item.key}
               accessibilityRole="button"
               accessibilityLabel={'Open ' + item.title}
-              onPress={() => item.development ? setShowInventory(true) : onNavigate(item.tab,item.section)}
+              onPress={() => {if(item.externalUrl){setPosError(false);void Linking.openURL(item.externalUrl).catch(()=>setPosError(true));}else if(item.development)setShowInventory(true);else onNavigate(item.tab,item.section);}}
               style={({ pressed }) => [styles.appCard, { borderColor: item.accent + '44' }, pressed && styles.pressed]}
             >
               <View style={[styles.appIcon, { backgroundColor: item.accent + '1A' }]}><Icon color={item.accent} size={27} /></View>
@@ -164,6 +168,7 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
           );
         })}
       </View>
+      {posError?<Text style={styles.empty}>Unable to open Black Label Hub POS. Please try again.</Text>:null}
       {available.length === 0 ? <Text style={styles.empty}>{catalogApps === null ? 'Loading your applications…' : 'No applications are assigned to this account. Contact your Hub administrator.'}</Text> : null}
       <Text style={styles.footer}>{catalogError ? 'Application permissions could not be refreshed. Showing last verified permissions.' : 'Application access is managed by Black Label Hub.'}</Text>
     </ScrollView>
