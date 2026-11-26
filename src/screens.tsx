@@ -38,8 +38,8 @@ export function HomeScreen({ bootstrap }: { bootstrap: MobileBootstrap }) {
   );
 }
 
-export function InboxScreen() {
-  return <InboxExperience />;
+export function InboxScreen({initialDirectory=false}:{initialDirectory?:boolean}) {
+  return <InboxExperience initialDirectory={initialDirectory} />;
 }
 
 export function CalendarScreen() {
@@ -58,7 +58,9 @@ export function MoreScreen({
   employeePhoto,
   onPhotoChanged,
   employeeTitle,
+  initialSection='main',
 }: {
+  initialSection?: 'main'|'clock';
   bootstrap: MobileBootstrap;
   onSignOut: () => void;
   pushStatus: 'unsupported'|'checking'|'registered'|'denied'|'error';
@@ -67,7 +69,7 @@ export function MoreScreen({
   onPhotoChanged: (url: string | null) => void;
   employeeTitle: string | null;
 }) {
-  const [section, setSection] = useState<'main' | 'notifications' | 'files' | 'clock'>('main');
+  const [section, setSection] = useState<'main' | 'notifications' | 'files' | 'clock'>(initialSection);
   const [prefs, setPrefs] = useState({ email_enabled: true, sms_enabled: false, push_enabled: true, high_priority_only: false });
   const [prefsBusy, setPrefsBusy] = useState(false);
   const [clockBusy, setClockBusy] = useState(false);
