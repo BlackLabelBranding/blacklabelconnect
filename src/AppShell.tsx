@@ -18,6 +18,8 @@ export function AppShell({
   onSignOut: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
+  const [section,setSection]=useState<'clock'|'directory'|undefined>();
+  const navigate=(tab:TabKey,next?:'clock'|'directory')=>{setSection(next);setActiveTab(tab);};
   const [employeePhoto, setEmployeePhoto] = useState<string | null>(null);
   const [employeeTitle, setEmployeeTitle] = useState<string | null>(null);
   useEffect(() => {
@@ -53,19 +55,19 @@ export function AppShell({
   return (
     <SafeAreaView style={styles.canvas}>
       <View style={[styles.app, constrained && styles.appConstrained]}>
-        {activeTab !== 'inbox' ? <AppHeader bootstrap={bootstrap} photoUrl={employeePhoto} onOpenAccount={() => setActiveTab('more')} /> : null}
+        {activeTab !== 'inbox' ? <AppHeader bootstrap={bootstrap} photoUrl={employeePhoto} onOpenAccount={() => navigate('more')} /> : null}
         <View style={styles.content}>
-          {activeTab === 'home' ? <HomeLaunchpad bootstrap={bootstrap} onNavigate={setActiveTab} /> : null}
-          {activeTab === 'inbox' ? <InboxScreen /> : null}
+          {activeTab === 'home' ? <HomeLaunchpad bootstrap={bootstrap} onNavigate={navigate} /> : null}
+          {activeTab === 'inbox' ? <InboxScreen initialDirectory={section==='directory'} /> : null}
           {activeTab === 'calendar' ? <CalendarScreen /> : null}
           {activeTab === 'work' ? <WorkScreen bootstrap={bootstrap} /> : null}
-          {activeTab === 'more' ? <MoreScreen bootstrap={bootstrap} onSignOut={onSignOut} pushStatus={pushRegistration.status} pushError={pushRegistration.error} employeePhoto={employeePhoto} onPhotoChanged={setEmployeePhoto} employeeTitle={employeeTitle} /> : null}
+          {activeTab === 'more' ? <MoreScreen initialSection={section==='clock'?'clock':'main'} bootstrap={bootstrap} onSignOut={onSignOut} pushStatus={pushRegistration.status} pushError={pushRegistration.error} employeePhoto={employeePhoto} onPhotoChanged={setEmployeePhoto} employeeTitle={employeeTitle} /> : null}
         </View>
         <TabBar
           activeTab={activeTab}
           tabs={tabs}
           unreadCount={bootstrap.notifications.unreadCount}
-          onChange={setActiveTab}
+          onChange={tab=>navigate(tab)}
         />
       </View>
     </SafeAreaView>
