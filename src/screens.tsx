@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Image, Pressable, ActivityIndicator, Switch, TextInput, Platform } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from './lib/supabase';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -74,7 +74,7 @@ export function MoreScreen({
   const [prefsBusy, setPrefsBusy] = useState(false);
   const [clockBusy, setClockBusy] = useState(false);
   const [punches, setPunches] = useState<Array<{ id: string; clock_in: string; clock_out: string | null }>>([]);
-  const [files, setFiles] = useState<Array<{ name: string; id?: string }>>([]);
+  const [files, setFiles] = useState<Array<{ name: string; id?: string | null }>>([]);
   const [fileBusy, setFileBusy] = useState(false);
   const [toolError, setToolError] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
