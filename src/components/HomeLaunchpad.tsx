@@ -88,6 +88,7 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
   if (bootstrap.navigation.home && !available.some(item=>item.key==='inventory')) available.push({key:'inventory',title:'Inventory',caption:'In development',accent:'#40D6B8',tab:'home',icon:Package,development:true});
   const canViewWork = available.some(item => item.key === 'work');
   const openTasks = tasks.filter((task) => !OPEN.has((task.status || '').toLowerCase()));
+  const nextTask = openTasks[0];
   const dateLabel = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', weekday: 'long', timeZone: 'America/Chicago' }).format(new Date());
 
   if (showInventory) return (
@@ -135,12 +136,12 @@ export function HomeLaunchpad({ bootstrap, onNavigate }: { bootstrap: MobileBoot
         ) : null}
       </View>
 
-      {canViewWork && openTasks.length > 0 && !workError ? (
+      {canViewWork && nextTask && !workError ? (
         <Pressable style={styles.nextTask} onPress={() => onNavigate('work')} accessibilityRole="button">
           <View style={styles.nextTaskCopy}>
             <Text style={styles.statusCaption}>NEXT UP · BLACK LABEL WORK</Text>
-            <Text style={styles.nextTaskTitle} numberOfLines={2}>{openTasks[0].title}</Text>
-            <Text style={styles.statusSmall}>{openTasks[0].due_date ? 'Due ' + openTasks[0].due_date : 'No due date'}</Text>
+            <Text style={styles.nextTaskTitle} numberOfLines={2}>{nextTask.title}</Text>
+            <Text style={styles.statusSmall}>{nextTask.due_date ? 'Due ' + nextTask.due_date : 'No due date'}</Text>
           </View>
           <ChevronRight color="#9BA8BB" size={20}/>
         </Pressable>

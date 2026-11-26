@@ -9,6 +9,7 @@ const bootstrap: MobileBootstrap = {
   user: { id: 'user-1', displayName: 'Test User', initials: 'TU', status: 'active' },
   activePersona: 'employee',
   personas: ['user', 'employee'],
+  roles: [],
   activeAccount: { id: '1', name: 'Black Label' },
   memberships: [],
   capabilities: [],

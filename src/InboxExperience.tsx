@@ -413,8 +413,8 @@ export function InboxExperience({initialDirectory=false}:{initialDirectory?:bool
   if(selected)return <TeamChatExperience key={selected.key} initialPeer={selected.peer} initialGroup={selected.group} onBack={back}/>;
   const rows:ChatRow[]=[
     ...threads.map(t=>({key:'direct:'+t.id,name:t.peer_name,preview:t.last_body||'No messages yet',at:t.last_at,unread:null,kind:'direct' as const,photo:photos[t.peer_id],peer:{user_id:t.peer_id,name:t.peer_name}})),
-    ...groups.map(g=>({key:'group:'+g.id,name:g.name,preview:groupLatest[g.id]?groupLatest[g.id].sender_name+': '+groupLatest[g.id].body:'No messages yet',at:groupLatest[g.id]?.created_at??null,unread:null,kind:'group' as const,group:g})),
-    ...(inbox?.conversations??[]).map(c=>({key:'external:'+c.id,name:linked[c.id]?contactName(linked[c.id]):titleForConversation(c),photo:linked[c.id]?.avatar_url,preview:c.latestMessage?.body.trim()||'No messages yet',at:c.lastMessageAt??c.latestMessage?.createdAt??null,unread:c.unreadCount,kind:'external' as const,external:c}))
+    ...groups.map(g=>{const latest=groupLatest[g.id];return {key:'group:'+g.id,name:g.name,preview:latest?latest.sender_name+': '+latest.body:'No messages yet',at:groupLatest[g.id]?.created_at??null,unread:null,kind:'group' as const,group:g};}),
+    ...(inbox?.conversations??[]).map(c=>{const match=linked[c.id];return {key:'external:'+c.id,name:match?contactName(match):titleForConversation(c),photo:match?.avatar_url,preview:c.latestMessage?.body.trim()||'No messages yet',at:c.lastMessageAt??c.latestMessage?.createdAt??null,unread:c.unreadCount,kind:'external' as const,external:c};})
   ];
   const query=search.trim().toLowerCase();
   const matches=(r:ChatRow)=>!query||(r.name+' '+r.preview).toLowerCase().includes(query);
