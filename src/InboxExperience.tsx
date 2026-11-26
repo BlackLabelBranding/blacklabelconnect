@@ -46,6 +46,34 @@ import { TeamChatExperience, rpc, type Peer, type Group, type Thread } from './T
 import { supabase } from './lib/supabase';
 
 type CrmContact = { id: number; full_name: string | null; company_name: string | null; email: string | null; phone: string | null; avatar_url: string | null };
+const contactFields='id,full_name,company_name,email,phone,avatar_url';
+const phoneKey=(value:string|null|undefined)=>{const d=(value??'').replace(/\D/g,'');return d.length===10?'1'+d:d;};
+const contactName=(c:CrmContact)=>c.full_name?.trim()||c.company_name?.trim()||c.phone||'CRM contact';
+function ContactEditor({contact,onCancel,onSaved}:{contact:CrmContact;onCancel:()=>void;onSaved:(c:CrmContact)=>void}){
+  const [draft,setDraft]=useState({full_name:contact.full_name??'',company_name:contact.company_name??'',phone:contact.phone??'',email:contact.email??'',avatar_url:contact.avatar_url??''});
+  const [busy,setBusy]=useState(false);const [error,setError]=useState('');
+  async function save(){
+    if(!supabase||busy)return;
+    if(!draft.full_name.trim()&&!draft.company_name.trim()){setError('Enter a name or company.');return;}
+    if(draft.email.trim()&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())){setError('Enter a valid email.');return;}
+    if(draft.avatar_url.trim()&&!/^https:\/\//i.test(draft.avatar_url.trim())){setError('Photo URL must use HTTPS.');return;}
+    setBusy(true);setError('');
+    try{
+      const capability=await supabase.rpc('crm2_has_capability',{p_capability:contact.id?'crm.edit':'crm.create'});
+      if(capability.error||capability.data!==true){setError('You do not have permission to save this contact.');return;}
+      const payload={full_name:draft.full_name.trim()||null,company_name:draft.company_name.trim()||null,email:draft.email.trim()||null,phone:draft.phone.trim()||null,avatar_url:draft.avatar_url.trim()||null};
+      const q=contact.id?supabase.from('contacts').update(payload).eq('id',contact.id):supabase.from('contacts').insert(payload);
+      const {data,error:err}=await q.select(contactFields).single();
+      if(err||!data)throw Error('Contact could not be saved. Check your CRM permissions.');
+      onSaved(data as CrmContact);
+    }catch(e){setError(e instanceof Error?e.message:'Unable to save contact.');}finally{setBusy(false);}
+  }
+  return <ScrollView contentContainerStyle={{padding:20,gap:16}} keyboardShouldPersistTaps="handled">
+    <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}><Pressable disabled={busy} onPress={onCancel}><Text style={{color:colors.amber}}>Cancel</Text></Pressable><Text style={styles.chatName}>{contact.id?'Edit contact':'New contact'}</Text><Pressable disabled={busy} onPress={()=>void save()}><Text style={{color:colors.amber,fontWeight:'800'}}>{busy?'Saving…':'Save'}</Text></Pressable></View>
+    {([['full_name','Name'],['company_name','Company'],['phone','Phone'],['email','Email'],['avatar_url','Photo URL']] as const).map(([key,label])=><View key={key} style={{gap:6}}><Text style={styles.chatPreview}>{label}</Text><TextInput accessibilityLabel={label} value={draft[key]} editable={!busy} onChangeText={v=>setDraft(d=>({...d,[key]:v}))} autoCapitalize={key==='full_name'||key==='company_name'?'words':'none'} keyboardType={key==='phone'?'phone-pad':key==='email'?'email-address':'default'} style={{backgroundColor:'#191D24',color:colors.text,padding:13,borderRadius:10}}/></View>)}
+    {error?<Text style={styles.loadNotice}>{error}</Text>:null}
+  </ScrollView>;
+}
 type ChatRow = { key: string; name: string; preview: string; at: string | null; unread: number | null; kind: 'direct' | 'group' | 'external'; photo?: string | null; peer?: Peer; group?: Group; external?: EmployeeInboxConversation };
 function Avatar({ row }: { row: ChatRow }) {
   const [failed, setFailed] = useState(false);
@@ -265,6 +293,12 @@ export function InboxExperience({initialDirectory=false}:{initialDirectory?:bool
   const [crmMore,setCrmMore]=useState(false);
   const [contact,setContact]=useState<CrmContact|null>(null);
   const [retry,setRetry]=useState(0);
+  const [editing,setEditing]=useState<CrmContact|null>(null);
+  const [linked,setLinked]=useState<Record<string,CrmContact>>({});
+  const [conversationPhones,setConversationPhones]=useState<Record<string,string>>({});
+  const [linking,setLinking]=useState(false);
+  const [linkSearch,setLinkSearch]=useState('');
+  const [linkResults,setLinkResults]=useState<CrmContact[]>([]);
   useEffect(()=>{
     if(!compose||composeMode!=='External'||!supabase)return;
     const client=supabase;
@@ -308,7 +342,28 @@ export function InboxExperience({initialDirectory=false}:{initialDirectory?:bool
     try {
       const [external,directory,direct,groupList]=await Promise.allSettled([fetchEmployeeInbox(),rpc<Peer[]>('connect_messageable_employees'),rpc<Thread[]>('connect_my_direct_threads'),rpc<Group[]>('connect_my_groups')]);
       const failures:string[]=[];
-      if(external.status==='fulfilled')setInbox(external.value);else failures.push('External messages unavailable.');
+      if(external.status==='fulfilled'){
+        setInbox(external.value);
+        const client=supabase;
+        if(client){
+          const ids=external.value.conversations.map(c=>c.id);
+          const {data:conversations,error:phoneError}=ids.length?await client.from('hub_conversations').select('id,phone').in('id',ids):{data:[],error:null};
+          if(!phoneError&&conversations){
+            const phones=Object.fromEntries(conversations.map(c=>[String(c.id),String(c.phone??'')]));
+            setConversationPhones(phones);
+            const matched:Record<string,CrmContact>={};
+            await Promise.all(Object.entries(phones).map(async ([id,phone])=>{
+              const key=phoneKey(phone);if(key.length<7)return;
+              const tail=key.slice(-7);const pattern='%'+tail.split('').join('%')+'%';
+              const {data,error}=await client.from('contacts').select(contactFields).ilike('phone',pattern).limit(100);
+              if(error)return;
+              const exact=(data??[]).filter(c=>phoneKey(c.phone)===key);
+              if(exact.length===1)matched[id]=exact[0] as CrmContact;
+            }));
+            setLinked(matched);
+          }
+        }
+      }else failures.push('External messages unavailable.');
       if(directory.status==='fulfilled')setPeers(directory.value);else failures.push('Team directory unavailable.');
       if(direct.status==='fulfilled')setThreads(direct.value);else failures.push('Direct messages unavailable.');
       if(groupList.status==='fulfilled'){
@@ -326,26 +381,38 @@ export function InboxExperience({initialDirectory=false}:{initialDirectory?:bool
     finally{inFlight.current=false;setLoading(false);setRefreshing(false);}
   },[]);
   useEffect(()=>{void load();const timer=setInterval(()=>void load(),15000);return()=>clearInterval(timer);},[load]);
+  useEffect(()=>{if(!linking||!supabase)return;let live=true;const client=supabase;const term=linkSearch.trim().replace(/[^\\p{L}\\p{N}\\s@.+_-]/gu,' ').slice(0,100);const timer=setTimeout(()=>{void client.from('contacts').select(contactFields).or('full_name.ilike.%'+term+'%,company_name.ilike.%'+term+'%').limit(30).then(({data})=>{if(live)setLinkResults((data??[]) as CrmContact[]);});},250);return()=>{live=false;clearTimeout(timer);};},[linking,linkSearch]);
   const back=()=>{setSelected(null);setCompose(false);void load();};
   if(tool==='approvals')return <ManagerBroadcastExperience onBack={()=>setTool(null)}/>;
   if(tool==='announcements')return <AnnouncementExperience onBack={()=>setTool(null)}/>;
   if(tool==='broadcasts')return <BroadcastExperience onBack={()=>setTool(null)}/>;
+  if(editing)return <ContactEditor key={editing.id||'new'} contact={editing} onCancel={()=>setEditing(null)} onSaved={saved=>{
+    setEditing(null);setContact(saved);setCrmPage(0);setRetry(r=>r+1);
+    setLinked(previous=>{const next={...previous};for(const [id,c] of Object.entries(next)){if(c.id===saved.id)delete next[id];}for(const [id,phone] of Object.entries(conversationPhones)){if(phoneKey(phone)&&phoneKey(phone)===phoneKey(saved.phone))next[id]=saved;}return next;});
+    void load();
+  }}/>;
+  if(linking&&selected?.external)return <View style={styles.container}><View style={styles.nativeHeader}><Pressable onPress={()=>setLinking(false)}><Text style={styles.filterLabel}>Cancel</Text></Pressable><Text style={styles.nativeTitle}>Add to existing contact</Text><TextInput placeholder="Search CRM contacts" placeholderTextColor={colors.muted} value={linkSearch} onChangeText={setLinkSearch} style={styles.nativeSearchInput}/><Text style={styles.loadNotice}>Select a contact to review and save this conversation's phone number. This replaces the primary phone; cancel if you need to retain it.</Text></View><ScrollView>{linkResults.map(c=><Pressable key={c.id} style={styles.chatRow} onPress={()=>{setLinking(false);setEditing({...c,phone:conversationPhones[selected.external!.id]||c.phone});}}><Text style={styles.chatName}>{contactName(c)}</Text></Pressable>)}</ScrollView></View>;
   if(contact){
     const name=contact.full_name||contact.company_name||'CRM contact';
     const row:ChatRow={key:'crm:'+contact.id,name,preview:contact.company_name??'',at:null,unread:null,kind:'external',photo:contact.avatar_url};
-    return <View style={styles.container}><View style={styles.nativeHeader}><Pressable accessibilityLabel="Back to contacts" style={styles.circleAction} onPress={()=>{setContact(null);setCrmError('');}}><ArrowLeft color={colors.text} size={23}/></Pressable><Avatar row={row}/><Text style={styles.nativeTitle}>{name}</Text>{!!contact.company_name&&<Text style={styles.chatPreview}>{contact.company_name}</Text>}
+    return <View style={styles.container}><View style={styles.nativeHeader}><Pressable accessibilityLabel="Back to contacts" style={styles.circleAction} onPress={()=>{setContact(null);setCrmError('');}}><ArrowLeft color={colors.text} size={23}/></Pressable><Avatar row={row}/><Text style={styles.nativeTitle}>{name}</Text><Pressable style={styles.filterPill} onPress={()=>setEditing(contact)}><Text style={styles.filterLabel}>Edit Contact</Text></Pressable>{!!contact.company_name&&<Text style={styles.chatPreview}>{contact.company_name}</Text>}
     {contact.phone?<Text selectable style={styles.chatName} onPress={()=>dial(contact)}>{contact.phone}</Text>:<Text style={styles.loadNotice}>No phone number on file.</Text>}
     {contact.email?<Text selectable style={styles.chatPreview}>{contact.email}</Text>:null}
     {!!contact.phone&&<Pressable accessibilityLabel="Call contact" style={styles.filterPill} onPress={()=>dial(contact)}><Text style={styles.filterLabel}>Call</Text></Pressable>}
     {crmError?<Text style={styles.loadNotice}>{crmError}</Text>:null}
     <Text style={styles.loadNotice}>External business SMS sending is not enabled yet.</Text></View></View>;
   }
-  if(selected?.external)return <ThreadExperience conversation={selected.external} onBack={back}/>;
+  if(selected?.external){
+    const c=selected.external;const match=linked[c.id];const phone=conversationPhones[c.id];
+    return <View style={{flex:1}}><View style={{flexDirection:'row',gap:8,padding:8,flexWrap:'wrap'}}>
+      {match?<Pressable style={styles.filterPill} onPress={()=>setContact(match)}><Text style={styles.filterLabel}>Contact details</Text></Pressable>:phone?<><Pressable style={styles.filterPill} onPress={()=>setEditing({id:0,full_name:'',company_name:null,phone,email:null,avatar_url:null})}><Text style={styles.filterLabel}>Create contact</Text></Pressable><Pressable style={styles.filterPill} onPress={()=>{setLinkSearch('');setLinking(true);}}><Text style={styles.filterLabel}>Add to existing</Text></Pressable></>:<Text style={styles.loadNotice}>Contact number unavailable</Text>}
+    </View><ThreadExperience conversation={match?{...c,clientName:contactName(match)}:c} onBack={back}/></View>;
+  }
   if(selected)return <TeamChatExperience key={selected.key} initialPeer={selected.peer} initialGroup={selected.group} onBack={back}/>;
   const rows:ChatRow[]=[
     ...threads.map(t=>({key:'direct:'+t.id,name:t.peer_name,preview:t.last_body||'No messages yet',at:t.last_at,unread:null,kind:'direct' as const,photo:photos[t.peer_id],peer:{user_id:t.peer_id,name:t.peer_name}})),
     ...groups.map(g=>({key:'group:'+g.id,name:g.name,preview:groupLatest[g.id]?groupLatest[g.id].sender_name+': '+groupLatest[g.id].body:'No messages yet',at:groupLatest[g.id]?.created_at??null,unread:null,kind:'group' as const,group:g})),
-    ...(inbox?.conversations??[]).map(c=>({key:'external:'+c.id,name:titleForConversation(c),preview:c.latestMessage?.body.trim()||'No messages yet',at:c.lastMessageAt??c.latestMessage?.createdAt??null,unread:c.unreadCount,kind:'external' as const,external:c}))
+    ...(inbox?.conversations??[]).map(c=>({key:'external:'+c.id,name:linked[c.id]?contactName(linked[c.id]):titleForConversation(c),photo:linked[c.id]?.avatar_url,preview:c.latestMessage?.body.trim()||'No messages yet',at:c.lastMessageAt??c.latestMessage?.createdAt??null,unread:c.unreadCount,kind:'external' as const,external:c}))
   ];
   const query=search.trim().toLowerCase();
   const matches=(r:ChatRow)=>!query||(r.name+' '+r.preview).toLowerCase().includes(query);
