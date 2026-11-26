@@ -4,24 +4,24 @@ import { ArrowLeft, Send } from 'lucide-react-native';
 import { supabase } from './lib/supabase';
 import { colors, spacing } from './theme';
 
-type Peer = { user_id: string; name: string };
-type Thread = { id: string; peer_id: string; peer_name: string; last_body: string | null; last_at: string | null };
-type Group = { id: string; name: string; created_at: string };
+export type Peer = { user_id: string; name: string };
+export type Thread = { id: string; peer_id: string; peer_name: string; last_body: string | null; last_at: string | null };
+export type Group = { id: string; name: string; created_at: string };
 type GroupMessage = { id: string; sender_id: string; sender_name: string; body: string; created_at: string };
 type Message = { id: string; sender_id: string; body: string; created_at: string };
-async function rpc<T>(name: string, args?: Record<string, unknown>): Promise<T> {
+export async function rpc<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   if (!supabase) throw new Error('Messaging is not configured.');
   const { data, error } = await supabase.rpc(name, args ?? {});
   if (error) throw new Error(error.message);
   return data as T;
 }
-export function TeamChatExperience({ onBack, embedded = false }: { onBack: () => void; embedded?: boolean }) {
+export function TeamChatExperience({ onBack, embedded = false, initialPeer = null, initialGroup = null }: { onBack: () => void; embedded?: boolean; initialPeer?: Peer | null; initialGroup?: Group | null }) {
   const [groups, setGroups] = useState<Group[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(initialGroup);
   const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
   const [peers, setPeers] = useState<Peer[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
-  const [selected, setSelected] = useState<Peer | null>(null);
+  const [selected, setSelected] = useState<Peer | null>(initialPeer);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
   const [search, setSearch] = useState('');
@@ -93,7 +93,7 @@ export function TeamChatExperience({ onBack, embedded = false }: { onBack: () =>
   };
   return <View style={styles.root}>
     {(!embedded || selected || selectedGroup) ? <View style={styles.header}>
-      <Pressable onPress={selectedGroup ? () => { setSelectedGroup(null); setDraft(''); } : selected ? () => setSelected(null) : onBack} accessibilityLabel="Back"><ArrowLeft color={colors.text} size={22}/></Pressable>
+      <Pressable onPress={initialPeer || initialGroup ? onBack : selectedGroup ? () => { setSelectedGroup(null); setDraft(''); } : selected ? () => setSelected(null) : onBack} accessibilityLabel="Back"><ArrowLeft color={colors.text} size={22}/></Pressable>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.title}>{selectedGroup ? selectedGroup.name : selected ? selected.name : 'Team messages'}</Text>
         <Text style={styles.channel}>INTERNAL ONLY · NOT SMS</Text>

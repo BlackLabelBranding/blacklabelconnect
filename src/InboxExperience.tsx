@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
+  RefreshControl,
   Pressable,
   ScrollView,
   TextInput,
@@ -10,7 +12,9 @@ import {
 } from 'react-native';
 import {
   ArrowLeft,
-  ChevronRight,
+  Ellipsis,
+  SquarePen,
+  Search,
   Inbox as InboxIcon,
   MessageSquare,
   UsersRound,
@@ -36,47 +40,35 @@ import { colors, spacing } from './theme';
 import { BroadcastExperience } from './BroadcastExperience';
 import { AnnouncementExperience } from './AnnouncementExperience';
 import { ManagerBroadcastExperience } from './ManagerBroadcastExperience';
-import { TeamChatExperience } from './TeamChatExperience';
+import { TeamChatExperience, rpc, type Peer, type Group, type Thread } from './TeamChatExperience';
+import { supabase } from './lib/supabase';
 
-function ConversationRow({
-  conversation,
-  onPress,
-}: {
-  conversation: EmployeeInboxConversation;
-  onPress: () => void;
-}) {
-  const timestamp = conversation.lastMessageAt ?? conversation.latestMessage?.createdAt ?? null;
-  const preview = conversation.latestMessage?.body.trim() || 'No messages yet.';
-
-  return (
-    <Pressable
-      accessibilityLabel={'Open conversation with ' + conversation.clientName}
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-    >
-      <View style={styles.rowIcon}>
-        <MessageSquare color={colors.amber} size={19} strokeWidth={1.8} />
-      </View>
-      <View style={styles.rowBody}>
-        <Text style={styles.channelEyebrow}>EXTERNAL SMS HISTORY</Text>
-        <View style={styles.rowTitleLine}>
-          <Text numberOfLines={1} style={styles.rowTitle}>{titleForConversation(conversation)}</Text>
-          <Text style={styles.rowTime}>{formatInboxTimestamp(timestamp)}</Text>
-        </View>
-        <Text numberOfLines={2} style={styles.rowPreview}>{preview}</Text>
-      </View>
-      <View style={styles.rowEnd}>
-        {conversation.unreadCount > 0 ? (
-          <View style={styles.unreadBadge}>
-            <Text style={styles.unreadText}>
-              {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
-            </Text>
-          </View>
-        ) : null}
-        <ChevronRight color={colors.muted} size={18} />
-      </View>
-    </Pressable>
-  );
+type ChatRow = { key: string; name: string; preview: string; at: string | null; unread: number | null; kind: 'direct' | 'group' | 'external'; photo?: string | null; peer?: Peer; group?: Group; external?: EmployeeInboxConversation };
+function Avatar({ row }: { row: ChatRow }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [row.photo]);
+  const initials = row.name.trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase();
+  return <View style={[styles.chatAvatar, row.kind === 'group' && { backgroundColor: '#302817' }, row.kind === 'external' && { backgroundColor: '#253746' }]}>
+    {row.photo && !failed ? <Image source={{uri:row.photo}} onError={() => setFailed(true)} style={styles.chatPhoto}/> : row.kind === 'group' ? <UsersRound color={colors.amber} size={24}/> : <Text style={[styles.avatarInitials,row.kind === 'external' && {color:'#99c9ed'}]}>{initials}</Text>}
+  </View>;
+}
+function chatTime(at: string | null) {
+  if (!at) return '';
+  const date = new Date(at), now = new Date();
+  if (!Number.isFinite(date.getTime())) return '';
+  if (date.toDateString() === now.toDateString()) return date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  const yesterday = new Date(now); yesterday.setDate(now.getDate()-1);
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return formatInboxTimestamp(at);
+}
+function ChatItem({row,onPress}:{row:ChatRow;onPress:()=>void}) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={'Open '+row.name} onPress={onPress} style={({pressed})=>[styles.chatRow,pressed&&styles.pressed]}>
+    <Avatar row={row}/>
+    <View style={styles.chatCopy}>
+      <View style={styles.rowTitleLine}><Text numberOfLines={1} style={styles.chatName}>{row.name}</Text><Text style={[styles.rowTime,!!row.unread&&{color:colors.amber}]}>{chatTime(row.at)}</Text></View>
+      <View style={styles.chatPreviewLine}>{row.kind==='external'?<Smartphone size={13} color="#99c9ed"/>:null}<Text numberOfLines={1} style={styles.chatPreview}>{row.preview}</Text>{!!row.unread&&<View style={styles.unreadBadge}><Text style={styles.unreadText}>{row.unread>99?'99+':row.unread}</Text></View>}</View>
+    </View>
+  </Pressable>;
 }
 
 function MessageBubble({
@@ -252,136 +244,105 @@ function StatePanel({
 }
 
 export function InboxExperience() {
-  const [inbox, setInbox] = useState<EmployeeInbox | null>(null);
-  const [selected, setSelected] = useState<EmployeeInboxConversation | null>(null);
-  const [showBroadcasts, setShowBroadcasts] = useState(false);
-  const [channel, setChannel] = useState<'team' | 'sms'>('team');
-  const [showTools, setShowTools] = useState(false);
-  const [showAnnouncements, setShowAnnouncements] = useState(false);
-  const [showManagerApprovals, setShowManagerApprovals] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const load = useCallback(async (refresh = false) => {
-    refresh ? setRefreshing(true) : setLoading(true);
-    setError(null);
+  const [inbox,setInbox]=useState<EmployeeInbox|null>(null);
+  const [peers,setPeers]=useState<Peer[]>([]);
+  const [threads,setThreads]=useState<Thread[]>([]);
+  const [groups,setGroups]=useState<Group[]>([]);
+  const [groupLatest,setGroupLatest]=useState<Record<string,{body:string;created_at:string;sender_name:string}>>({});
+  const [photos,setPhotos]=useState<Record<string,string>>({});
+  const [selected,setSelected]=useState<ChatRow|null>(null);
+  const [filter,setFilter]=useState<'All'|'Internal'|'External'|'Unread'>('All');
+  const [search,setSearch]=useState('');
+  const [compose,setCompose]=useState(false);
+  const [showTools,setShowTools]=useState(false);
+  const [tool,setTool]=useState<'announcements'|'approvals'|'broadcasts'|null>(null);
+  const [errors,setErrors]=useState<string[]>([]);
+  const [loading,setLoading]=useState(true);
+  const [refreshing,setRefreshing]=useState(false);
+  const inFlight=useRef(false);
+  const load=useCallback(async(refresh=false)=>{
+    if(inFlight.current)return;
+    inFlight.current=true;
+    if(refresh)setRefreshing(true);
     try {
-      setInbox(await fetchEmployeeInbox());
-    } catch (caught) {
-      setInbox(null);
-      setError(caught instanceof Error ? caught.message : 'Inbox could not be loaded.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-    const interval = setInterval(() => {
-      void load(true);
-    }, 30_000);
-    return () => clearInterval(interval);
-  }, [load]);
-
-  if (showManagerApprovals) return <ManagerBroadcastExperience onBack={() => setShowManagerApprovals(false)} />;
-  if (showAnnouncements) return <AnnouncementExperience onBack={() => setShowAnnouncements(false)} />;
-  if (showBroadcasts) return <BroadcastExperience onBack={() => setShowBroadcasts(false)} />;
-
-  if (selected) {
-    return <ThreadExperience conversation={selected} onBack={() => setSelected(null)} />;
-  }
-
-  return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} style={channel === 'team' ? { flexGrow: 0 } : { flex: 1 }}>
-        <View style={styles.pageHead}>
-          <View style={styles.pageCopy}>
-            <Text style={styles.kicker}>BLACK LABEL MESSAGES</Text>
-            <Text style={styles.pageTitle}>Inbox</Text>
-          </View>
-          <Pressable
-            accessibilityLabel="Refresh inbox"
-            disabled={refreshing}
-            onPress={() => void load(true)}
-            style={({ pressed }) => [styles.refreshButton, pressed && styles.pressed]}
-          >
-            {refreshing ? <ActivityIndicator color={colors.text} /> : <RefreshCw color={colors.text} size={20} />}
-          </Pressable>
-        </View>
-
-        <View style={styles.channelTabs}>
-          <Pressable onPress={() => setChannel('team')} accessibilityRole="tab" accessibilityState={{ selected: channel === 'team' }} style={[styles.channelTab, channel === 'team' && styles.channelTabActive]}>
-            <UsersRound color={channel === 'team' ? colors.canvas : colors.soft} size={17} />
-            <Text style={[styles.channelTabText, channel === 'team' && styles.channelTabTextActive]}>Team</Text>
-          </Pressable>
-          <Pressable onPress={() => setChannel('sms')} accessibilityRole="tab" accessibilityState={{ selected: channel === 'sms' }} style={[styles.channelTab, channel === 'sms' && styles.channelTabActive]}>
-            <Smartphone color={channel === 'sms' ? colors.canvas : colors.soft} size={17} />
-            <Text style={[styles.channelTabText, channel === 'sms' && styles.channelTabTextActive]}>SMS · External</Text>
-          </Pressable>
-        </View>
-        {channel === 'sms' ? (
-          <View style={styles.smsIntro}>
-            <Smartphone color={colors.amber} size={20} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.smsIntroTitle}>Outside the team?</Text>
-              <Text style={styles.smsIntroCopy}>Use SMS for clients, vendors and other contacts who aren't on Connect. SMS history is currently view-only.</Text>
-            </View>
-          </View>
-        ) : null}
-        {channel === "sms" ? null : <Pressable accessibilityLabel="Toggle messaging tools" onPress={() => setShowTools((value) => !value)} style={styles.toolsToggle}>
-          <Text style={styles.toolsToggleText}>Announcements and manager tools {showTools ? "−" : "+"}</Text>
-        </Pressable> }
-        {showTools && channel === "team" ? <>
-        <Pressable accessibilityLabel="Open manager broadcast approvals" onPress={() => setShowManagerApprovals(true)} style={styles.broadcastEntry}>
-          <Text style={styles.broadcastEntryTitle}>Manager approvals</Text>
-          <Text style={styles.broadcastEntrySubtitle}>Review and publish employee announcements ›</Text>
-        </Pressable>
-
-        <Pressable accessibilityLabel="Open employee announcements" onPress={() => setShowAnnouncements(true)} style={styles.broadcastEntry}>
-          <Text style={styles.broadcastEntryTitle}>Employee announcements</Text>
-          <Text style={styles.broadcastEntrySubtitle}>Read internal company updates ›</Text>
-        </Pressable>
-
-        <Pressable accessibilityLabel="Open employee broadcast drafts" onPress={() => setShowBroadcasts(true)} style={styles.broadcastEntry}>
-          <Text style={styles.broadcastEntryTitle}>Employee broadcasts</Text>
-          <Text style={styles.broadcastEntrySubtitle}>Create announcements and manage campaign drafts ›</Text>
-        </Pressable>
-
-        </> : null}
-        {channel === "team" ? null : loading ? (
-          <StatePanel busy title="Loading your inbox" detail="Pulling your authorized conversations." />
-        ) : error ? (
-          <StatePanel
-            title="Inbox unavailable"
-            detail={error}
-            action={{ label: 'Try again', onPress: () => void load() }}
-          />
-        ) : inbox?.conversations.length ? (
-          <View style={styles.list}>
-            <View style={styles.listHeader}>
-              <Text style={styles.listTitle}>External SMS conversations</Text>
-              <Text style={styles.listCount}>{inbox.conversations.length}</Text>
-            </View>
-            {inbox.conversations.map((conversation) => (
-              <ConversationRow
-                conversation={conversation}
-                key={conversation.id}
-                onPress={() => setSelected(conversation)}
-              />
-            ))}
-          </View>
-        ) : (
-          <StatePanel title="Your inbox is clear" detail="No external SMS conversations are available right now." />
-        )}
-      </ScrollView>
-      {channel === 'team' ? <View style={{ flex: 1, minHeight: 0 }}><TeamChatExperience embedded onBack={() => undefined} /></View> : null}
+      const [external,directory,direct,groupList]=await Promise.allSettled([fetchEmployeeInbox(),rpc<Peer[]>('connect_messageable_employees'),rpc<Thread[]>('connect_my_direct_threads'),rpc<Group[]>('connect_my_groups')]);
+      const failures:string[]=[];
+      if(external.status==='fulfilled')setInbox(external.value);else failures.push('External messages unavailable.');
+      if(directory.status==='fulfilled')setPeers(directory.value);else failures.push('Team directory unavailable.');
+      if(direct.status==='fulfilled')setThreads(direct.value);else failures.push('Direct messages unavailable.');
+      if(groupList.status==='fulfilled'){
+        setGroups(groupList.value);
+        const latest=await Promise.allSettled(groupList.value.map(async g=>({id:g.id,messages:await rpc<Array<{body:string;created_at:string;sender_name:string}>>('connect_group_messages',{p_thread:g.id,p_limit:1})})));
+        setGroupLatest(previous=>{const next={...previous};for(const result of latest){if(result.status==='fulfilled'){const m=result.value.messages[0];if(m)next[result.value.id]=m;else delete next[result.value.id];}}return next;});
+      }else failures.push('Groups unavailable.');
+      const ids=Array.from(new Set([...(directory.status==='fulfilled'?directory.value.map(p=>p.user_id):[]),...(direct.status==='fulfilled'?direct.value.map(t=>t.peer_id):[])]));
+      if(supabase&&ids.length){
+        const {data}=await supabase.from('team_members').select('user_id,avatar_url').in('user_id',ids);
+        if(data)setPhotos(Object.fromEntries(data.filter(p=>p.user_id&&p.avatar_url).map(p=>[p.user_id,p.avatar_url])));
+      }
+      setErrors(failures);
+    }catch{setErrors(['Unable to refresh messages. Pull down to retry.']);}
+    finally{inFlight.current=false;setLoading(false);setRefreshing(false);}
+  },[]);
+  useEffect(()=>{void load();const timer=setInterval(()=>void load(),15000);return()=>clearInterval(timer);},[load]);
+  const back=()=>{setSelected(null);setCompose(false);void load();};
+  if(tool==='approvals')return <ManagerBroadcastExperience onBack={()=>setTool(null)}/>;
+  if(tool==='announcements')return <AnnouncementExperience onBack={()=>setTool(null)}/>;
+  if(tool==='broadcasts')return <BroadcastExperience onBack={()=>setTool(null)}/>;
+  if(selected?.external)return <ThreadExperience conversation={selected.external} onBack={back}/>;
+  if(selected)return <TeamChatExperience key={selected.key} initialPeer={selected.peer} initialGroup={selected.group} onBack={back}/>;
+  const rows:ChatRow[]=[
+    ...threads.map(t=>({key:'direct:'+t.id,name:t.peer_name,preview:t.last_body||'No messages yet',at:t.last_at,unread:null,kind:'direct' as const,photo:photos[t.peer_id],peer:{user_id:t.peer_id,name:t.peer_name}})),
+    ...groups.map(g=>({key:'group:'+g.id,name:g.name,preview:groupLatest[g.id]?groupLatest[g.id].sender_name+': '+groupLatest[g.id].body:'No messages yet',at:groupLatest[g.id]?.created_at??null,unread:null,kind:'group' as const,group:g})),
+    ...(inbox?.conversations??[]).map(c=>({key:'external:'+c.id,name:titleForConversation(c),preview:c.latestMessage?.body.trim()||'No messages yet',at:c.lastMessageAt??c.latestMessage?.createdAt??null,unread:c.unreadCount,kind:'external' as const,external:c}))
+  ];
+  const query=search.trim().toLowerCase();
+  const matches=(r:ChatRow)=>!query||(r.name+' '+r.preview).toLowerCase().includes(query);
+  const visible=rows.filter(r=>matches(r)&&(filter==='All'||(filter==='Internal'&&r.kind!=='external')||(filter==='External'&&r.kind==='external')||(filter==='Unread'&&!!r.unread))).sort((a,b)=>(Date.parse(b.at??'')||0)-(Date.parse(a.at??'')||0));
+  const directory:ChatRow[]=peers.map(p=>({key:'peer:'+p.user_id,name:p.name,preview:'Internal message',at:null,unread:null,kind:'direct',photo:photos[p.user_id],peer:p}));
+  return <View style={styles.container}>
+    <View style={styles.nativeHeader}>
+      <View style={styles.nativeActions}>
+        <Pressable accessibilityLabel={compose?'Back to messages':'Messaging tools'} style={styles.circleAction} onPress={()=>compose?(setCompose(false),setSearch('')):setShowTools(v=>!v)}>{compose?<ArrowLeft color={colors.text} size={23}/>:<Ellipsis color={colors.text} size={24}/>}</Pressable>
+        {!compose&&<Pressable accessibilityLabel="New message" style={styles.composeAction} onPress={()=>{setCompose(true);setSearch('');setShowTools(false);}}><SquarePen color="#090909" size={22}/></Pressable>}
+      </View>
+      <Text style={styles.nativeTitle}>{compose?'New message':'Messages'}</Text>
+      <View style={styles.nativeSearch}><Search color={colors.muted} size={19}/><TextInput accessibilityLabel={compose?'Search contacts':'Search messages'} value={search} onChangeText={setSearch} autoCapitalize="none" placeholder={compose?'Search contacts':'Search messages'} placeholderTextColor={colors.muted} style={styles.nativeSearchInput}/></View>
+      {!compose&&<View style={styles.nativeFilters}>{(['All','Internal','External','Unread'] as const).map(label=><Pressable key={label} accessibilityRole="tab" accessibilityState={{selected:filter===label}} style={[styles.filterPill,filter===label&&styles.filterActive]} onPress={()=>setFilter(label)}><Text style={[styles.filterLabel,filter===label&&{color:'#090909'}]}>{label}</Text></Pressable>)}</View>}
+      {showTools&&!compose&&<View style={styles.menu}>{([['announcements','Announcements'],['approvals','Manager approvals'],['broadcasts','Employee broadcasts']] as const).map(([id,label])=><Pressable key={id} style={styles.menuItem} onPress={()=>{setShowTools(false);setTool(id);}}><Text style={styles.chatName}>{label}</Text></Pressable>)}</View>}
     </View>
-  );
+    <ScrollView style={{flex:1}} contentContainerStyle={styles.nativeList} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void load(true)} tintColor={colors.amber}/>}>
+      {errors.map(e=><Text key={e} style={styles.loadNotice}>{e}</Text>)}
+      {loading?<ActivityIndicator color={colors.amber} style={{marginTop:24}}/>:compose?<>{directory.filter(matches).map(r=><ChatItem key={r.key} row={r} onPress={()=>setSelected(r)}/>)}{!directory.filter(matches).length&&<Text style={styles.loadNotice}>No matching teammates.</Text>}<Text style={styles.loadNotice}>External SMS history is read-only. New messages are internal.</Text></>:<>{visible.map(r=><ChatItem key={r.key} row={r} onPress={()=>setSelected(r)}/>)}{!visible.length&&<Text style={styles.loadNotice}>{query?'No matching conversations.':'No conversations here yet.'}</Text>}{filter==='Unread'&&<Text style={styles.loadNotice}>Unread counts are currently available for external SMS only.</Text>}</>}
+    </ScrollView>
+  </View>;
 }
 
 const styles = StyleSheet.create({
+  nativeHeader:{paddingHorizontal:16,paddingTop:8,paddingBottom:8,gap:12},
+  nativeActions:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},
+  circleAction:{width:44,height:44,borderRadius:22,alignItems:'center',justifyContent:'center',backgroundColor:'#222222'},
+  composeAction:{width:44,height:44,borderRadius:22,alignItems:'center',justifyContent:'center',backgroundColor:colors.amber},
+  nativeTitle:{color:colors.text,fontSize:34,fontWeight:'800'},
+  nativeSearch:{flexDirection:'row',alignItems:'center',gap:9,backgroundColor:'#222222',borderRadius:14,paddingHorizontal:12,minHeight:44},
+  nativeSearchInput:{flex:1,color:colors.text,fontSize:16,minHeight:44},
+  nativeFilters:{flexDirection:'row',gap:7,flexWrap:'wrap'},
+  filterPill:{backgroundColor:'#222222',borderRadius:20,paddingHorizontal:14,paddingVertical:9},
+  filterActive:{backgroundColor:colors.amber},
+  filterLabel:{color:colors.text,fontSize:13,fontWeight:'600'},
+  nativeList:{paddingHorizontal:16,paddingBottom:24},
+  chatRow:{flexDirection:'row',alignItems:'center',gap:12,minHeight:72},
+  chatAvatar:{width:50,height:50,borderRadius:25,backgroundColor:'#242424',alignItems:'center',justifyContent:'center',overflow:'hidden'},
+  chatPhoto:{width:50,height:50,borderRadius:25},
+  avatarInitials:{color:colors.amber,fontWeight:'700',fontSize:17},
+  chatCopy:{flex:1,minWidth:0,minHeight:72,justifyContent:'center',gap:5,borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:'#292929'},
+  chatName:{flexShrink:1,color:colors.text,fontSize:16,fontWeight:'700'},
+  chatPreviewLine:{flexDirection:'row',gap:5,alignItems:'center'},
+  chatPreview:{flex:1,color:colors.muted,fontSize:14},
+  menu:{backgroundColor:'#222222',borderRadius:12,paddingHorizontal:14},
+  menuItem:{paddingVertical:12},
+  loadNotice:{color:colors.muted,fontSize:13,paddingVertical:14},
+
   container: { flex: 1, minWidth: 0, width: '100%', overflow: 'hidden' },
   content: { paddingBottom: spacing.xl, paddingHorizontal: spacing.md, width: '100%' },
   channelTabs: { flexDirection: 'row', backgroundColor: colors.surfaceRaised, borderColor: colors.line, borderWidth: 1, borderRadius: 12, padding: 5, gap: 5, marginBottom: spacing.md },
