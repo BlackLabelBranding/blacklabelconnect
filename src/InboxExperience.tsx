@@ -296,6 +296,7 @@ export function InboxExperience({initialDirectory=false}:{initialDirectory?:bool
   const [editing,setEditing]=useState<CrmContact|null>(null);
   const [linked,setLinked]=useState<Record<string,CrmContact>>({});
   const [conversationPhones,setConversationPhones]=useState<Record<string,string>>({});
+  const [resolution,setResolution]=useState<Record<string,'matched'|'unknown'|'ambiguous'|'failed'>>({});
   const [linking,setLinking]=useState(false);
   const [linkSearch,setLinkSearch]=useState('');
   const [linkResults,setLinkResults]=useState<CrmContact[]>([]);
@@ -352,15 +353,16 @@ export function InboxExperience({initialDirectory=false}:{initialDirectory?:bool
             const phones=Object.fromEntries(conversations.map(c=>[String(c.id),String(c.phone??'')]));
             setConversationPhones(phones);
             const matched:Record<string,CrmContact>={};
+            const resolved:Record<string,'matched'|'unknown'|'ambiguous'|'failed'>={};
             await Promise.all(Object.entries(phones).map(async ([id,phone])=>{
-              const key=phoneKey(phone);if(key.length<7)return;
+              const key=phoneKey(phone);if(key.length<7){resolved[id]='failed';return;}
               const tail=key.slice(-7);const pattern='%'+tail.split('').join('%')+'%';
               const {data,error}=await client.from('contacts').select(contactFields).ilike('phone',pattern).limit(100);
-              if(error)return;
+              if(error||!data||data.length===100){resolved[id]='failed';return;}
               const exact=(data??[]).filter(c=>phoneKey(c.phone)===key);
-              if(exact.length===1)matched[id]=exact[0] as CrmContact;
+              if(exact.length===1){matched[id]=exact[0] as CrmContact;resolved[id]='matched';}else resolved[id]=exact.length?'ambiguous':'unknown';
             }));
-            setLinked(matched);
+            setLinked(matched);setResolution(resolved);
           }
         }
       }else failures.push('External messages unavailable.');
@@ -391,7 +393,7 @@ export function InboxExperience({initialDirectory=false}:{initialDirectory?:bool
     setLinked(previous=>{const next={...previous};for(const [id,c] of Object.entries(next)){if(c.id===saved.id)delete next[id];}for(const [id,phone] of Object.entries(conversationPhones)){if(phoneKey(phone)&&phoneKey(phone)===phoneKey(saved.phone))next[id]=saved;}return next;});
     void load();
   }}/>;
-  if(linking&&selected?.external)return <View style={styles.container}><View style={styles.nativeHeader}><Pressable onPress={()=>setLinking(false)}><Text style={styles.filterLabel}>Cancel</Text></Pressable><Text style={styles.nativeTitle}>Add to existing contact</Text><TextInput placeholder="Search CRM contacts" placeholderTextColor={colors.muted} value={linkSearch} onChangeText={setLinkSearch} style={styles.nativeSearchInput}/><Text style={styles.loadNotice}>Select a contact to review and save this conversation's phone number. This replaces the primary phone; cancel if you need to retain it.</Text></View><ScrollView>{linkResults.map(c=><Pressable key={c.id} style={styles.chatRow} onPress={()=>{setLinking(false);setEditing({...c,phone:conversationPhones[selected.external!.id]||c.phone});}}><Text style={styles.chatName}>{contactName(c)}</Text></Pressable>)}</ScrollView></View>;
+  if(linking&&selected?.external)return <View style={styles.container}><View style={styles.nativeHeader}><Pressable onPress={()=>setLinking(false)}><Text style={styles.filterLabel}>Cancel</Text></Pressable><Text style={styles.nativeTitle}>Add to existing contact</Text><TextInput placeholder="Search CRM contacts" placeholderTextColor={colors.muted} value={linkSearch} onChangeText={setLinkSearch} style={styles.nativeSearchInput}/><Text style={styles.loadNotice}>Choose an existing contact with this phone number or a contact without a primary phone. Existing different phone numbers are protected.</Text></View><ScrollView>{linkResults.map(c=><Pressable key={c.id} disabled={!!c.phone&&phoneKey(c.phone)!==phoneKey(conversationPhones[selected.external!.id])} style={[styles.chatRow,!!c.phone&&phoneKey(c.phone)!==phoneKey(conversationPhones[selected.external!.id])&&{opacity:0.4}]} onPress={()=>{if(c.phone&&phoneKey(c.phone)!==phoneKey(conversationPhones[selected.external!.id]))return;setLinking(false);setEditing({...c,phone:conversationPhones[selected.external!.id]||c.phone});}}><Text style={styles.chatName}>{contactName(c)}</Text></Pressable>)}</ScrollView></View>;
   if(contact){
     const name=contact.full_name||contact.company_name||'CRM contact';
     const row:ChatRow={key:'crm:'+contact.id,name,preview:contact.company_name??'',at:null,unread:null,kind:'external',photo:contact.avatar_url};
@@ -405,7 +407,7 @@ export function InboxExperience({initialDirectory=false}:{initialDirectory?:bool
   if(selected?.external){
     const c=selected.external;const match=linked[c.id];const phone=conversationPhones[c.id];
     return <View style={{flex:1}}><View style={{flexDirection:'row',gap:8,padding:8,flexWrap:'wrap'}}>
-      {match?<Pressable style={styles.filterPill} onPress={()=>setContact(match)}><Text style={styles.filterLabel}>Contact details</Text></Pressable>:phone?<><Pressable style={styles.filterPill} onPress={()=>setEditing({id:0,full_name:'',company_name:null,phone,email:null,avatar_url:null})}><Text style={styles.filterLabel}>Create contact</Text></Pressable><Pressable style={styles.filterPill} onPress={()=>{setLinkSearch('');setLinking(true);}}><Text style={styles.filterLabel}>Add to existing</Text></Pressable></>:<Text style={styles.loadNotice}>Contact number unavailable</Text>}
+      {match?<Pressable style={styles.filterPill} onPress={()=>setContact(match)}><Text style={styles.filterLabel}>Contact details</Text></Pressable>:phone&&resolution[c.id]==='unknown'?<><Pressable style={styles.filterPill} onPress={()=>setEditing({id:0,full_name:'',company_name:null,phone,email:null,avatar_url:null})}><Text style={styles.filterLabel}>Create contact</Text></Pressable><Pressable style={styles.filterPill} onPress={()=>{setLinkSearch('');setLinking(true);}}><Text style={styles.filterLabel}>Add to existing</Text></Pressable></>:<Text style={styles.loadNotice}>{resolution[c.id]==='ambiguous'?'Multiple matching contacts. Resolve in Hub CRM.':'Contact lookup unavailable. Refresh to retry.'}</Text>}
     </View><ThreadExperience conversation={match?{...c,clientName:contactName(match)}:c} onBack={back}/></View>;
   }
   if(selected)return <TeamChatExperience key={selected.key} initialPeer={selected.peer} initialGroup={selected.group} onBack={back}/>;
