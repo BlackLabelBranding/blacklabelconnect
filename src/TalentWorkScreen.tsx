@@ -36,7 +36,15 @@ export function TalentWorkScreen({ bootstrap }: { bootstrap: MobileBootstrap }) 
   setResponding(id);setError(null);setNotice(null);
   const result=await supabase.rpc('mobile_respond_to_invitation',{p_invitation_id:id,p_response:status});
   if(result.error){setError('Your response could not be saved. Please retry.');}
-  else {setNotice(status==='interested'?'Interest sent to staffing. This is not a confirmed booking.':'Invitation declined.');await load();}
+  else {setData(prev=>({...prev,invitations:prev.invitations.map(i=>i.id===id?{...i,status}:i)}));setNotice(status==='interested'?'Interest sent to staffing. This is not a confirmed booking.':'Invitation declined.');await load();}
+  setResponding(null);
+ };
+ const respondOffer=async(id:string,status:'accepted'|'declined')=>{
+  if(!supabase||responding)return;
+  setResponding(id);setError(null);setNotice(null);
+  const result=await supabase.rpc('mobile_respond_to_gig_offer',{p_assignment_id:id,p_response:status});
+  if(result.error){setError('Could not save your offer response. Please refresh and retry.');}
+  else {setData(prev=>({...prev,gigs:prev.gigs.map(g=>g.id===id?{...g,assignment_status:status}:g)}));setNotice(status==='accepted'?'Offer accepted. Awaiting final staffing confirmation.':'Offer declined.');await load();}
   setResponding(null);
  };
  const openTasks=data.tasks.filter(t=>!['completed','done','cancelled','canceled'].includes((t.status||'').toLowerCase()));
@@ -44,12 +52,12 @@ export function TalentWorkScreen({ bootstrap }: { bootstrap: MobileBootstrap }) 
   <Text style={styles.kicker}>BLACK LABEL CONNECT</Text>
   <Text style={styles.title}>Work</Text>
   <Text style={styles.muted}>Your real tasks, invitations, and confirmed assignments from Black Label Hub.</Text>
-  <View style={styles.filters}>{(['tasks','gigs','invitations'] as const).map(item=><Pressable key={item} accessibilityRole="button" accessibilityState={{selected:filter===item}} onPress={()=>setFilter(item)} style={[styles.filterButton,filter===item&&styles.filterActive]}><Text style={[styles.filterText,filter===item&&styles.filterTextActive]}>{item==='tasks'?'Tasks':item==='gigs'?'Gigs':'Invitations'}</Text></Pressable>)}</View>
+  <View style={styles.filters}>{(['tasks','gigs','invitations'] as const).map(item=><Pressable key={item} accessibilityRole="button" accessibilityState={{selected:filter===item}} onPress={()=>setFilter(item)} style={[styles.filterButton,filter===item&&styles.filterActive]}><Text style={[styles.filterText,filter===item&&styles.filterTextActive]}>{item==='tasks'?'Tasks':item==='gigs'?`Gigs${data.gigs.some(g=>g.assignment_status==='offered')?' •':''}`:'Invitations'}</Text></Pressable>)}</View>
   <Pressable onPress={()=>void load()} disabled={loading} style={styles.refresh}><Text style={styles.link}>{loading?'Loading…':'Refresh work'}</Text></Pressable>
   {loading?<ActivityIndicator color={colors.amber}/>:null}
   {error?<Text style={styles.error}>{error}</Text>:null}
   {notice?<Text style={styles.notice}>{notice}</Text>:null}
-  {!loading&&!error?<View>
+  {!loading?<View>
    {filter==='tasks'?<View><Text style={styles.section}>My tasks ({openTasks.length})</Text>
    {openTasks.length===0?<Text style={styles.empty}>No open tasks assigned to you.</Text>:openTasks.map(task=><View key={task.id} style={styles.card}>
     <Text style={styles.cardTitle}>{task.title}</Text>
@@ -61,7 +69,9 @@ export function TalentWorkScreen({ bootstrap }: { bootstrap: MobileBootstrap }) 
    {data.gigs.length===0?<Text style={styles.empty}>No gigs currently assigned to you.</Text>:data.gigs.map(gig=><View key={gig.id} style={styles.card}>
     <Text style={styles.cardTitle}>{gig.title||'Work assignment'}</Text>
     <Text style={styles.meta}>{dateText(gig.starts_at)} · {locationText(gig)}</Text>
-    <Text style={styles.detail}>Assignment: {gig.assignment_status||'Pending'} · Contract: {gig.contract_status||'Not recorded'} · Pay: {gig.pay_status||'Not recorded'}</Text>
+    <Text style={styles.detail}>{gig.assignment_status==='offered'?'Booking offer received':gig.assignment_status==='accepted'?'Accepted · Awaiting confirmation':gig.assignment_status==='confirmed'?'Confirmed booking':`Assignment: ${gig.assignment_status||'Pending'}`} · Contract: {gig.contract_status||'Not recorded'} · Pay: {gig.pay_status||'Not recorded'}</Text>
+    {gig.pay_rate!=null?<Text style={styles.meta}>Pay: {gig.pay_currency||'USD'} {gig.pay_rate}</Text>:null}
+    {gig.assignment_status==='offered'?<View style={styles.actions}><Pressable disabled={!!responding} onPress={()=>void respondOffer(gig.id,'accepted')} style={styles.primary}><Text style={styles.primaryText}>{responding===gig.id?'Saving…':'Accept Gig'}</Text></Pressable><Pressable disabled={!!responding} onPress={()=>void respondOffer(gig.id,'declined')} style={styles.secondary}><Text style={styles.link}>Decline</Text></Pressable></View>:null}
     {gig.call_time?<Text style={styles.meta}>Call time: {gig.call_time}</Text>:null}
    </View>)}
    </View>:null}
@@ -69,10 +79,11 @@ export function TalentWorkScreen({ bootstrap }: { bootstrap: MobileBootstrap }) 
    {data.invitations.length===0?<Text style={styles.empty}>No invitations assigned to you.</Text>:data.invitations.map(inv=><View key={inv.id} style={styles.card}>
     <Text style={styles.cardTitle}>{inv.title||'Work opportunity'}</Text>
     <Text style={styles.meta}>{dateText(inv.starts_at)} · {locationText(inv)}</Text>
-    <Text style={styles.detail}>Status: {inv.status}</Text>
-    {['sent','viewed','interested'].includes(inv.status)&&(!inv.expires_at||new Date(inv.expires_at)>new Date())?<View style={styles.actions}>
-     <Pressable disabled={responding===inv.id} onPress={()=>void respond(inv.id,'interested')} style={styles.primary}><Text style={styles.primaryText}>{responding===inv.id?'Saving…':'Interested'}</Text></Pressable>
-     <Pressable disabled={responding===inv.id} onPress={()=>void respond(inv.id,'declined')} style={styles.secondary}><Text style={styles.link}>Decline</Text></Pressable>
+    <Text style={styles.detail}>{inv.status==='interested'?'Interest submitted · Awaiting staffing approval':inv.status==='assigned'?'Response processed · See My gigs':`Status: ${inv.status}`}</Text>
+    {inv.status==='interested'?<Pressable onPress={()=>setFilter('gigs')} style={styles.refresh}><Text style={styles.link}>Check my gig offers →</Text></Pressable>:null}
+    {['sent','viewed'].includes(inv.status)&&(!inv.expires_at||new Date(inv.expires_at)>new Date())?<View style={styles.actions}>
+     <Pressable disabled={!!responding} onPress={()=>void respond(inv.id,'interested')} style={styles.primary}><Text style={styles.primaryText}>{responding===inv.id?'Saving…':'Interested'}</Text></Pressable>
+     <Pressable disabled={!!responding} onPress={()=>void respond(inv.id,'declined')} style={styles.secondary}><Text style={styles.link}>Decline</Text></Pressable>
     </View>:null}
    </View>)}
    </View>:null}
