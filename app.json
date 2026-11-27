@@ -11,7 +11,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.blacklabelbranding.connect",
       "buildNumber": "1",
-      "icon": "./assets/connect-icon.png"
+      "icon": "./assets/connect-icon.png",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.blacklabelbranding.connect",
